@@ -1,0 +1,172 @@
+%\section{Concord in highload regime}
+%Intro
+
+In typical blockchain protocols nodes, such as miners, have the freedom of choosing which transactions to include in a block. Normally, transactions come along with a fee and nodes choose the highest paying transactions available. 
+%This causes a fundamental problem to the incentive structure of these protocols, as nodes are encouraged \emph{not} to propagate transactions they receive~\cite{red_balloons}. 
+In Concord a fee-per-transaction mechanism is given up altogether, 
+%thus changing the incentive structure of forwarding transactions. The elimination of fees 
+raising anew the freedom nodes have in choosing transactions.
+
+In Sec.~\ref{section_Protocol} we stated that a correct primary "chooses uniformly at random at most $b$ $etx$s from its Epool" but did not elaborate as to how this is done or validated. This is the goal of this section. An important aspect in this context is the relation between the rate at which $etx$s are issued and the rate at which they are appended to the blockchain. An epoch at which the \emph{issuance rate} is smaller than the maximal \emph{append rate} the system permits is relatively easy to analyse - all transactions are processed within a small time frame. A more involved case is when the issuance rate is greater than the append rate. During such an epoch, there are many $etx$s pending to be added to the blockchain. This makes the decision of which $etx$s to include in an Eblock more significant and subject to manipulations, which is something we wish to limit.
+
+%motivation - representation fairness
+In \emph{highload regime} epochs, Concord strives to satisfy \emph{representation fairness} towards its nodes, meaning that nodes are represented in Eblocks in accordance to their relative issuance rate\footnote{In the appendix we relate to some problems that such fairness may yield, e.g., that nodes artificially produce many self-owned transactions in order to get more block real-estate.}. To achieve this, we introduce a \emph{deterministic procedure} for choosing transactions that emulates random sampling of one's Epool. Furthermore, this procedure is \emph{verifiable} in the sense that a node validating a proposed Eblock, can check that the $etx$s it contains were selected legally. This ensures that Byzantine primaries cannot exploit highload epochs to their benefit by over-servicing favored nodes.
+
+%Section structure
+In this section we shall describe the procedure for choosing transactions and the way we incorporate it into Concord. Then, we analyze the benefits and risks introduced to the protocol by these modifications.
+
+\subsection{EBlock construction in highload epochs}
+%Definition of a blocchain protocol under highload regime
+%Definition proposal I:
+% \begin{definition}{\textbf{($\lambda$-highload epoch)}}\label{def:highload}. 
+% We say that a blockchain protocol, in which the number of $etx$s in an Eblock is some fixed, agreed upon parameter $b$, is in $\lambda$-highload epoch if for every correct node, the size of its Epool is at least $\lambda \cdot b$, where $\lambda$ is some constant greater than $1$. 
+% \end{definition}
+%This definition is not complete. Do we have a time limit for this restriction? Do we want a limit on the size of the Epool? 
+We introduce our method of constructing an Eblock in a way that would limit manipulations in highload epochs. We start with a formal definition of an highload epoch, then describe and explain in detail the selection procedure and how Eblocks are validated and incorporated in the blockchain.
+
+\begin{definition}{\textbf{($(\lambda,\Gamma)$-highload epoch)}}\label{def:highload}. 
+Let $\lambda>1,\Gamma>1$. We say that a blockchain protocol, in which the number of $etx$s in an Eblock is bounded by some parameter $b$, is in a $(\lambda,\Gamma)$-highload epoch, if at least one of the following holds: 
+	\begin{enumerate}
+    	\item \label{rep:highload_cond1}The number of $etx$s issued and disseminated to the network in the course of one term is at least $\lambda \cdot b$.
+        \item \label{rep:highload_cond2} The size of correct nodes' Epools is more than $\Gamma \cdot  b$. 
+    \end{enumerate}
+\end{definition}
+
+The definition captures two typical highload scenarios. The first condition captures the scenario when sizes of Epools increase, which happens when the issuance rate is greater then the rate in which $etx$s are appended into the blockchain. If condition \ref{rep:highload_cond1} holds, then in every term the size of the Epools increase by $(\lambda-1)\cdot b$. When the issuance rate is no longer greater than $b$, there will still be a time frame where the sizes of the Epools are relatively large. At this point condition \ref{rep:highload_cond2} will kick in, until the size of correct nodes' Epools is smaller than $\Gamma \cdot b$.
+
+When considering growing Epools, we must address the question of how large can they get. If the Epools are too large, the network cannot achieve its goals and is de-facto broken. We wish to make sure that so long as the Epools are of reasonable size, we can ensure some desired properties - namely safety, liveness, and fairness. This leads us to the notion of $MAX_{Epool}$, which is the maximal number of $etx$s in correct node's Epool. We further note that if $\lambda$ is much greater than $1$ the system fails completely, as $etx$s might take very long to be included in Eblocks.
+
+%Intuition of hash sampling
+%Intuitively, when Epools contain more than $b$ $etx$s, correct primaries will pick $etx$s whose hash-value (under a randomly tweaked hash function) is small.
+\textbf{Eblock Construction.} We start with the notion of a node \emph{locking} its Epool. We denote by $EP_i^t$ node $i$'s locked Epool at time $t$, which is a snapshot of the $etx$s in its Epool at time $t$. In this section, unless stated otherwise, we fix the term number $r$. We denote by $t_i$ the time at which node $i$ received $DB^{r-1}$, the decrypted $r-1$ term block. 
+
+%notations: $EB_p$
+%constructing a valid Eblock in term $r$
+Let $i$ be some node and denote the Eblock it constructs by $EB_i$. Node $i$ constructs its Eblock by choosing the $b$ $etx$s in $EP_i^{t_i-2\Delta}$ that hash to the minimal values according to $H(RS^{r-1},etx)$ \footnote{This can be implemented by node $i$ attaching a timestamp to each $etx$ at the time it is received.}. We note that $RS^{r-1}$, which was already used to randomly select the committee members in term $r$, is used here again as a random and unpredictable seed to tweak the hash function and make sure the selection procedure admits a random sample of $b$ $etx$s from one's Epool. This is explained in detail later on. Another term we use is $TH_i$, which serves as the threshold hash value of an $etx\in EB_i$. We will refer to it as the \textit{threshold of node $i$}. It is the value for which, for an $etx\in EP_i^{t_i-2\Delta}$, $etx\in EB_i$ if and only if $H(RS^{r-1},etx)\leq TH_i$. Equivalently, $TH_i$ is the $b$ lowest hash value of an $etx$ in $EP_i^{t_i-2\Delta}$. 
+
+The choice of the lock time $t_i-2\Delta$ was chosen in order to ensure that network latency does not allow the primary to prepare tailor-made $etx$s, \emph{after} revealing the next random seed and forwarding them to the rest of the network. 
+%The intuition for setting a lock time of $2\Delta$ is as follows. Taking the $b$ lowest hashed $etx$s appears to be random and unpredictable to other nodes. This is true, so long as the ordering $H$ induces on the Epools is unpredictable. However, 
+Due to network latency, it could be the case that $RS^{r-1}$ is revealed to node $p$ before other nodes - and by (at most) $2\Delta$ time. The primary can exploit this extra time to generate $etx$s with low hash value (i.e., with low $H(RS^{r-1},etx)$) and disseminate them to the network. Restricting committee members to consider only $etx$s which are known to them prior to time $t_i-2\Delta$ prevents this kind of attack. We thus end up with a selection procedure which is random and unpredictable.
+
+Node $i$ constructs Eblock $EB_i$ in every term in which it is a committee member. If $i$ is the primary then it sends its constructed Eblock to other committee members in order for them to accept and commit it. Otherwise, as explained next, $EB_i$ is used in order to perform the validation process. 
+
+%notations: $EB_i$
+%validating an Eblock in term $r$
+\textbf{Eblock Validation.} Upon receiving a pre-prepare message proposing an Eblock $EB_p$, a correct committee member $i$, validates it by performing the validation process presented in~\ref{Protocol:ValidateEB}, along with two additional validations: 
+\begin{enumerate}
+\item There are exactly $b$ $etx$s in $EB_p$.
+%\item $|EB_p \cap EB_i| \geq $
+%\item Something with the thresholds of $EB_p$ and $EB_i$ being close.
+\item $ |EB_p\cap EB_i|\geq \beta \cdot b$. That is, there is at least a $\beta$ overlap between the $etx$s in the Eblock $i$ constructed and the one the primary constructed. The parameter $\beta$ depends on how large is the overlap between two different correct nodes' Epools and on the size of the Eblock $b$, and is formally defined in the next section.
+\end{enumerate}
+
+
+%Explanation as to the locking times choices
+%\red{VERSION 1:}
+
+%Locking a validating committee member's Epool at $t_i-2\Delta$ ensures that the primary could not have the time to dissipate tailor-made $etx$s for term $r$. Due to the synchrony assumptions we have, it is guaranteed that the primary could not have revealed $DB^{r-1}$ (and thus also $RS^{r-1}$) prior to $t_i-2\Delta$. Put differently, $t_i-2\Delta < t_p$ (recall the decryption process). 
+
+%Explanation as to why $\alpha$ can be assumed close to $1$
+%To maintain the liveness of the protocol, we rely on a large overlap between their Epools at the locking time, that is between $EP_p^{t_p-2\Delta}$ and $EP_i^{t_i-2\Delta}$. The locking time of the validators is enforced upon us to ensure no tailor-made $etx$s are dissipated. The locking time of the primary, on the other hand, is chosen to maximize its overlap with the other Epools (at their locking time), so as to increase its chances of being validated. In absence of any other information, the primary's best guess is that $t_i\sim t_p$, that is, the decryption time of the primary is roughly the same as the other node's decryption time. In this way, it is safe to assume that at the locking time, the primary's Epool is similar to other nodes' Epools. 
+
+%Justification: the deterministic rule emulates a random sample of one's Epool.
+%Thus far we have argued that the deterministic $etx$ selection procedure emulates a random sample of one's Epool. We showed that no primary can manipulate nodes' Epools after revealing $RS^{r-1}$ by quickly forwarding low-hashed $etx$s for term $r$. Following similar logic, it is also true that other nodes cannot manipulate the primary's Epool and have it construct an Eblock with a disproportionate amount of their $etx$s.
+
+%What are the risks introduced by these modifications?
+%In the following section we show that the deterministic selection procedure and the validation process that goes with it maintains Concord's basic properties: 
+%\begin{itemize}
+%\item Safety. We are only limiting the valid Eblocks and thus safety is not affected.
+%\item election-fairness. We did not change the way $RS^r$ is being produced and thus this property is kept trivially.
+%\item Liveness (strong liveness). We show later that with overwhelming probability a validly constructed Eblock gets committed.
+%\end{itemize}
+
+%What do we gain from this?
+%representation fairness
+%We then show the main gain to Concord from this modification, namely that Concord is \emph{$\epsilon$-representation fair} (as defined later). This is a consequence of the fact that with this validation method, the power of a Byzantine primary to construct an unfair Eblock is limited. 
+
+
+%Explanation as to the locking times choices
+
+%DAVID: This paragraph is not written so well
+The benefit of the validation process is that it checks that $etx$s in the proposed Eblock were chosen in a manner that is close to the random selection induced by the hash function. The extent of closeness is related to the $\beta$ overlap required by the validations. Since the method of $etx$ selection is close to random, we can expect the protocol to admit the property of \textit{representation fairness}, which is simply to say that nodes' representation in Eblocks is similar to their relative representation in $etx$s issuance. The reason we cannot ask for equality between $EB_i$ and $EB_p$ is that due to latency, the nodes' Epools can differ slightly, and this difference accounts for different Eblocks as well. The consequence of this looser validation is that we cannot force perfect fairness towards nodes, but only $\epsilon$\textit{-representation fairness} which we define and prove in \ref{subsec:repfair}.
+Before proving what we gain from the new validation conditions, in the next section we show that the validation does not hurt the liveness of the protocol (as safety and election fairness are trivially kept).
+
+
+%Explanation as to why $\alpha$ can be assumed close to $1$
+
+%Justification: the deterministic rule emulates well random sampling of one's Epool. A proposed Eblock will be validated against an Epool prior to the time the primary could have constructed the Eblock.
+
+%intuition as to each added step in the validation process
+
+%validating $th^r$ assuming close Epools at any point in time for any correct pair.
+
+%validating the content of an Eblock.
+
+
+%Intuition as to each new step
+
+%What do we gain from this?
+%representation fairness
+%What are the risks introduced by these modifications?
+
+%Question:
+%Can we check that a proposed Eblock is only contained within the validating Eblock? or do we have to look at the intersection? I ask because we can verify a correct primary constructs its Eblock according to an older Epool and thus at the construction time an $etx$ selected by the primary is with high probability known to the validators. Vice versa though, is not true...
+%This is a softer condition than the intersection - thus it shouldn't affect liveness. What about representation fairness?
+
+\subsection{Liveness} \label{Liveness}
+%The problem in Concord's terms
+	%(Repetitive) The main goal of the validation condition is to restrict the primary's ability to deviate from a random selection of $etx$s, which would ensure \textit{representation fairness}. 
+To maintain \emph{strong liveness}, we must guarantee a correct Eblock is validated with \emph{overwhelming probability}. This depends, of course, on the choice of $\beta$ and the definition of overwhelming probability. We show that for $\beta=\frac{3}{4}$, a correct Eblock is validated with probability greater than $1-textbf{exp}(-20)$.
+
+%The problem in terms of our model - formal claim
+Showing that Concord is strongly live with $\beta=\frac{3}{4}$ amounts to proving the following claim, which is symmetric with respect to $p$ and $i$:
+\begin{claim} {}For $p$ and $i$ two correct nodes, node $i$ validates $EB_p$ with overwhelming probability. I.e., $|EB_p\cap EB_i|\geq \frac{3}{4}\cdot b$ with overwhelming probability.
+\end{claim}
+The claim holds under two assumptions:
+\begin{enumerate}
+\item Eblocks are not too small: that is, we assume $b>1,000$.
+\item For every two correct nodes $i$ and $j$ and times $t_i$ and $t_j$ when they received $DB^{r-1}$, if $etx\in EP_i^{t_i}$ then $etx\in EP_j^{t_j}$ with probability $\alpha>0.95$. \label{rep:assumption2}
+\end{enumerate}	
+We wish to motivate the second assumption. The reason we assume $\alpha<1$, i.e., that the probability an $etx$ in $EP^{t_i}_i$ is also in $EP_j^{t_j}$ is smaller than $1$, is on account of two reasons. The first is that due to latency an $etx$ that arrived to $i$ by time $t$ did not necessarily arrive to $j$ by time $t$. Moreover, the times $t_i$ and $t_j$ may differ between two correct nodes (by at most $2\Delta$), due to the network latency.
+%Intuition (on a moral level, what do we need for liveness)
+The drop to $\beta<\alpha$ in the Eblock validation intersection is in order to ensure that with \emph{overwhelming probability} the intersection between the Eblocks is at least $\beta\cdot b$.
+
+  %Proof of claim (formal)
+  \begin{proof} For two nodes $i$ and $p$ and term $r$, the lock times of the Eblocks are fixed so we omit them from the notation. For an $etx\in EB_p$, let $Y_{etx}$ be the random variable stating whether $etx\notin EP_i$. Namely, 
+	 \begin{equation}
+    Y_{etx} =
+    \begin{cases}
+      1  &\mbox{if }  etx\notin EP_i \\
+      0  &\mbox{otherwise}
+    \end{cases}
+  \end{equation}
+  By assumption \ref{rep:assumption2}, $\{Y_{etx}\}_{etx\in EB_p}$ are independently identically distributed Bernoulli variables with success probability $1-\alpha$. Define $Y:=\sum_{etx\in EB_p} Y_{etx}$. Then $Y=|EB_p\setminus EP_i|$ and $\mathbb{E}[Y]=(1-\alpha)\cdot|EB_p|=(1-\alpha)\cdot b$. We are interested to bound the probability that $Y$ is greater than $(1-\beta)\cdot b$ for some $\beta\leq \alpha$. Using Chernoff bound on $Y$, we get
+%using *Chernoff* inequality for liveness
+ \begin{equation}\begin{split}\label{eq:rep_chernoff}
+ \textbf{Pr}\left[Y>(1-\beta) \cdot b\right]&=\textbf{Pr}\left[Y>\left(1+\left(\frac{1-\beta}{1-\alpha}-1\right)\right)(1-\alpha)\cdot  b\right]\\
+ &\leq \textbf{exp}\left(-\frac{\left(1-\frac{1-\beta}{1-\alpha}\right)^2(1-\alpha) \cdot b}{2}\right)=:\eta 
+\end{split} \end{equation}
+%gibuy::::
+%For two nodes $i$ and $p$ and term $r$, the lock times of the Eblocks are fixed so we omit them from the notation. For an $etx\in EB_p$, let $Y_{etx}$ be the random variable stating whether $etx\in EP_i$. Namely, 
+%	 \begin{equation}
+ %   Y_{etx} =
+  %  \begin{cases}
+   %   1  &\mbox{if }  etx\in EP_i \\
+    %  0  &\mbox{otherwise}
+    %\end{cases}
+  %\end{equation}
+  %By assumption \ref{rep:assumption2}, $\{Y_{etx}\}_{etx\in BP_p}$ are independently identically distributed Bernoulli variables with success probability $\alpha$. Define $Y:=\sum_{etx\in BP_p} Y_{etx}$. Then $Y=|EP_i\cap EB_p|$ and $\mathbb{E}[Y]=\alpha\cdot|EB_p|=\alpha\cdot b$. We are interested to bound the probability that $Y$ is smaller than $\beta \cdot b$ for some $\beta\leq \alpha$. Using Chernoff bound on $Y$, we get
+%using *Chernoff* inequality for liveness
+ %\begin{equation}\begin{split}\label{eq:rep_chernoff}
+ %\textbf{Pr}\left[Y<\beta \cdot b\right]&=\textbf{Pr}\left[Y<\left(1-\left(1-\frac{\beta}{\alpha}\right)\right)\alpha\cdot  b\right]\\
+ %&\leq \textbf{exp}\left(-\frac{\left(1-\frac{\beta}{\alpha}\right)^2\alpha \cdot b}{2}\right)=:\eta 
+%\end{split} \end{equation}
+
+Recall that $TH_p$ denotes the \textit{threshold} of user $p$, namely the hash value of the $b$-th $etx$ in $EP_p$, and we defined $EB_p$ to be the set of the $b$ $etx$s in $EP_p$ with the lowest hash value. Thus, an equivalent definition for $EB_p$ is $EB_p:=EP_p\cap \{etx|H(RS^{r-1},etx)\leq TH_p\}$. First, consider the case that $TH_p\leq TH_i$. In this case any $etx\in EP_i\cap EB_p$ has hash value lower than $TH_i$, which means it must lie in $EB_i$ and thus $EP_i\cap EB_p\subseteq EB_i \cap EB_p$. From equation \ref{eq:rep_chernoff}, $|EP_i\cap EB_p|\geq \beta\cdot b$ holds with probability greater than $1-\eta$.  It follows that with probability greater than $1-\eta$,  $|EB_i\cap EB_p|\geq \beta \cdot b$ holds as well. 
+
+Next consider the case that $TH_i\leq TH_p$. Swapping $i$ and $p$ in the first part of the proof we get that $|EP_p\cap EB_i|< \beta \cdot b$ with probability of at most $\eta$. Thus by the same argument used in the previous paragraph, we get that with probability greater than $1-\eta$, $|EB_i\cap EB_p|\geq \beta \cdot b$ holds in this case as well.
+
+To get the desired $\beta=\frac{3}{4}$, assume $\alpha=0.95$ and $b\geq 1,000$. For $\beta=\frac{3}{4}$ we get that $\eta<\textbf{exp}(-20)$ which concludes the proof. 
+    \end{proof}
+    
+Before we continue to show how the large overlap translates to Concord being representation fair, we make two remarks. First, it is apparent that the new validation conditions does not hurt the \emph{safety} of Concord. Indeed, it still holds that at most one block is agreed upon in each term. The second remark regards the fact that $\frac{3}{4}$ overlap leaves the adversary $\frac{1}{4}b$ $etx$s to manipulate. This is still a fairly large fraction of the Eblock, and is higher than what one should expect in a strongly synchronous network. While it is much better than other protocols in which primaries have complete freedom in constructing a block, we remark that by adding several other conditions to the validation process we can gain some control over the "missing" $\frac{1}{4}$\footnote{Consider, for example, a condition requiring the (absolute) hash value of an $etx$ in $EB_p$ to be smaller than some constant. With a careful choice of constant, one can show that this limits the freedom of the primary over the remaining $\frac{1}{4}b$ to a small subset of its Epool, without risking liveness.}. We leave this for future work.

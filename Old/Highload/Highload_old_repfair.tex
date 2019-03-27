@@ -1,0 +1,496 @@
+\subsection{Representation Fairness}\label{subsec:repfair}
+\red{DAVID:}
+In this article we tried to avoid any discussion around the incentives that dictate nodes' decisions and operations. The notion of representation fairness is strongly linked to the incentive structure of the protocol and becomes important under the assumption that nodes compete for block space - each node, trying to best service its own users. 
+Under the Eblock validation we propose, any Eblock construction strategy that deviates from the original instructions would yield an Eblock with a lower probability to be committed. Among the $f$ Byzantine nodes some might try to find strategies that would lead to a blockchain that over services their users. For example, if a Byzantine node issues $10\%$ of the overall $etx$s, then the percentage of its $etx$s in the blockchain should be, at all times, close to $10\%$, no matter what strategy it follows. We emphasize that satisfying this property is quite trivial if we consider very long time frames - at the end of the day, all issued transactions will be added to the blockchain. The difficulty arises due to the requirement to maintain the blockchain fair at all times.
+
+It is quite clear that if the current blockchain distribution matches the issuance rate and a correct primary is elected, then also after it commits a new Eblock, the blockchain remains a faithful representation of the issuance rate. However, if a Byzantine primary is elected it might construct an invalid Eblock that gets committed and distorts the blockchain distribution. There are a few questions the property of representation fairness should address: how significant can this distortion be? (for the time being we analyze the maximal distortion rather then do a probabilistic analysis - \red{we can do simulations for this}); and how many correct terms would it take to fix? The first question arises another question - how is the distortion done? Does the Byzantine primary use broadcasted $etx$s that should not be included in the Eblock according to their hash values, or does it use $etx$s that he hid from the rest of the network? 
+In this section we show that Gruffalo is representation fair by showing two things: distorting Eblocks with hidden transactions is not worthwhile (nodes gain more from forwarding their transactions); distorting Eblocks by selecting favored transactions can yield a small and bounded distortion that if followed by correct behavior is fixed quickly.
+
+% all of the distributions should be RVs.
+Modeling Eblock construction:
+We denote a RV for the general Epool at term $r$ - $P^r$. When a correct node constructs an Eblock it can be modeled as $b$ i.i.d samples of $P^r$. $P^r$ can differ from the RV that represents the issuance distribution $I$, which we assume is constant. The blockchain is an empirical distribution that should represent $I$ faithfully. This is trivially achieved if all primaries are correct in $X$ terms. (\red{needed analysis: in how many rounds is the empirical distribution close to $I$'s distribution? This is a function of $b$, $n$ and $I$'s entropy I would assume.}) Introducing Byzantine nodes, the situation becomes more complicated. Byzantine primaries can construct some of their Eblock by sampling $P^r$ and some by adding their own hidden $etx$s. We can model this by sampling a different RV we denote by $H^r$. In addition, Byzantine primaries can choose to discard some of the $etx$s sampled by $P^r$ and re-sample until they get a desired $etx$. We show a few things: first, due to the small number of faulty nodes and the validation process, this can only make $X$ a bit larger and $C^r$ to deviate from $I$ by so much. (\red{needed analysis: How big can the deviation be? How much longer does it take to converge to it?? Should be much less then $2X$, both should depend on $frac{f}{n}$, $\beta$ and $b$.}) Second, hiding $etx$s is not necessarily worthwhile. (\red{needed analysis: When is it and when is it not?? should depend on $frac{f}{n}$, $\beta$ and $rep_j$.}) 
+
+
+%Intuition and motivation for representation fairness
+During highload epochs, Epools are large so that issued $etx$s might take several terms to be included in the blockchain. It is desired that the \emph{waiting time} is, on average, equal among all nodes, and not manipulable by the adversary. A closely related motivation is that nodes expect the fraction of their $etx$s in the blockcahin to be close to their \emph{issuance rate}. For example, if a node issues $10\%$ of the overall $etx$s, then the percentage of this node's $etx$s in the blockchain should be, at all times, close to $10\%$ - no matter how an adversary tries to manipulate. It is crucial for the understanding of this section that all issued $etx$s are eventually appended into the blockchain. Thus, in the long term fairness is satisfied trivially. Any non-trivial notion of representation fairness should take the time factor into account.  
+
+In this section we further develop the concept of representation fairness in light of these ideas and through a few distributions we define formally. The main goal of this section is to reach a definition that fully captures our intuition in regards to representation fairness and prove Gruffalo satisfies it. 
+
+%General setting. Starting term - $r$, issuance rate, etc
+%maybe rephrase
+%In all definitions, by 'beginning of term $r$' we mean the time $t$ at which the last correct node revealed $DB^{r-1}$.
+The general setting we consider is that a term starts when some correct node revealed $DB^{r-1}$. During term $r$, $b$ $etx$s are added to the blockchain (with $EB^r$) and new $etx$s are issued and propagated through the network.
+
+%Formal definitions of the 4 main distributions with additional explanations
+\begin{definition}{\textbf{Issuance distribution}}
+The issuance distribution of term $r$ is a probability vector $\mathcal{ID}^r:=(\mathcal{ID}^r_1,\mathcal{ID}^r_2,\dots,\mathcal{ID}^r_n)$, where $\mathcal{ID}^r_j$ is the fraction of $etx$s issued by $j$ during term $r$.
+\end{definition}
+Clearly, this distribution may change from term to term. However, from the random nature of Eblock construction in Gruffalo, we cannot expect representation fairness to be realized instantaneously. We thus assume it is fixed and denote it by $\mathcal{ID}:=(\mathcal{ID}_1,\mathcal{ID}_2,\dots,\mathcal{ID}_n)$. In practice, it is enough to assume it changes slowly relative to the time it takes for representation fairness to be obtained, which we analyze below.
+
+\begin{definition}{\textbf{Eblock distribution}}
+The Eblock distribution of term $r$ is a probability vector $\MC{BD}^r:=(\MC{BD}^r_1,\MC{BD}^r_2,\dots,\MC{BD}^r_n)$, where $y^r_j$ is the fraction of $etx$s issued by $j$ in $EB^r$. 
+\end{definition} 
+The Eblock distribution accounts for short-term fairness. \red{I think this is not so clear... what is short-term fairness?}
+
+For long-term fairness \red{I think this is not so clear... what is long-term fairness?}, we need to consider the accumulative Eblock distribution, namely the blockchain distribution:
+\begin{definition}{\textbf{Blockchain distribution}} 
+The Blockchain distribution by term $r$ is a probability vector $\mathcal{CD}^r= \left( \MC{CD}^r_1,\MC{CD}^r_2,\dots,\MC{CD}^r_n \right)$ where $\MC{CD}_j^r$ is the fraction of $etx$s owned by node $j$ that were appended to the blockchain by term $r$. 
+\end{definition}
+By a slight abuse of notations, we denote by $I^r$ the set of $etx$s issued up to term $r$ and by $C^r$ the set of $etx$s which were appended to the blockchain by term $r$. We thus denote by $|I^r|$ and $|C^r|$ the sizes of these sets. In the same spirit and since Eblocks' size is fixed, we get $|B^r|=b$ for all $r$.
+
+\begin{definition} {\textbf{Epool distribution}}
+The Epool distribution in term $r$ is a probability vector $\MC{PD}^r=(\MC{PD}_1^r,\MC{PD}_2^r,\dots,\MC{PD}_n^r)$, where $\MC{PD}_j^r$ is the fraction of $etx$s issued by by $j$ which appear in the global Epool $GEP$.
+\end{definition}
+
+To deal with $etx$s waiting time, one must first recall that even if all primaries were correct, Epool construction is a random process which can result in some $etx$s having a relatively long waiting time. Thus, Gruffalo strives to ensure \emph{average} waiting time is not biased in favor or against certain nodes. 
+\red{not sure we need a formal definition here}
+This leads to the following definition:
+\begin{definition}{\textbf{Average waiting time}}
+The average waiting time of an $etx$ is $\mathbb{E}(t_{etx})$, where $t_{etx}$ is the random variable stating the time passed from the $etx$ issuance time and the time it was appended to the blockchain.
+\end{definition}
+
+%Observe that $\MC{ID}$ and $\MC{CD}$ are objects which capture the behavior of the system throughout long periods of time. In the context of fairness we say that they relate to \textit{long term fairness}. $\MC{BD}$ and $\MC{PD}$, however, are by nature much more temporary, and relate to \textit{short term fairness}.
+
+In addition to the assumption that the issuance distribution $ID$ is fixed, we make a few more assumptions, keeping many of the variables fixed. This is done, once again, both to simplify the analysis as well as to allow us to focus on what we believe are the important issues in this context:
+\begin{enumerate}
+\item $|I^r|=b$ for all terms $r$, that is, the number of issued $etx$s at each term is fixed, and equals the number of $etx$s which are appended to the blockchain at each term. A consequence of this assumption is that the size of $GEP$ is fixed, say at $|GEP|=\Gamma\cdot b$ for some $\Gamma\geq 1$. We remark that if the issuance rate is smaller than $b$, then the size of $GEP$ grows small, which relaxes the problem of representation fairness. On the other hand, if the rate is much greater than the appending rate, or otherwise it is slightly greater than $b$ over a long period of time, the Epool size grows too large and the system is de-facto broken. This makes the assumption of $|I^r|=b$ sensible. 
+
+\item combining the above assumption with $\MC{ID}^r=\MC{ID}$ for all $r$, amounts to saying that the (absolute) number of $etx$s issued by node $j$ at each term is $\MC{ID}_j\cdot b$.
+\end{enumerate}
+
+Translating the motivating problems to these definitions and setting, we wish to ensure several things, namely, that the difference between the issuance distribution $\MC{ID}$ and the Epool distribution $\MC{PD}^r$ is small, for all $r$; that the difference between the blockchain distribution $\MC{CD}^r$ and the issuance distribution $\MC{ID}$ is small; and that the average waiting time of an $etx$ does not depend on the node which issued the $etx$. 
+To further motivate the definition for fairness we give below, recall that the method for constructing an Eblock emulates random sampling, so we can expect $\mathcal{BD}^r$ and $\mathcal{ID}$ to be very close to each other, which would result in $\mathcal{CD}^r$ and $\mathcal{ID}$ to be close. However, an adversarial primary might choose the $b$ $etx$s for its Eblock differently from the intended method. It can exploit the allowed difference of $(1-\beta)\cdot b$ $etx$s between the proposed and expected Eblock for its own benefit. Thus, it is unavoidable that adversaries can cause the above distributions to differ. The questions are how significant can these differences be? Do they accumulate over time, or does the system recover? How fast do these distributions recover from a faulty term? The answers to these questions determine the average waiting time, which may be the most significant parameter for nodes in the network.
+
+\red{MAYBE THIS IS TOO ELABORATIVE TO INCLUDE IN THE PREVIOUS PERAGRAOH SO I PUT IT HERE FOR NOW (IDO): If the Eblock it proposes is \emph{very} different from the intended method, then a correct node would not approve the adversary's Eblock, and no actual harm is done in terms of fairness. However, a less greedy adversary might choose the $b$ $etx$s to add to its Eblock only \emph{slightly} differently from the protocol's method. Put differently, a clever adversary exploits the allowed difference of $(1-\beta)\cdot b$ $etx$s between the proposed and expected Eblock for its own benefit. Thus, it is unavoidable that adversaries can cause the above distributions to differ.}
+
+\begin{definition}{\textbf{Representation Fairness}}
+\red{COMPLETE}
+A blockchain protocol ...
+\end{definition}
+
+It is meaningful to analyze what kinds of behavior can violate the representation fairness in Gruffalo. There are two main adversarial manipulations to consider, which we refer to as \emph{unfair sampling} and \emph{hiding $etx$s}.
+
+An unfair sampling attack is just what we described above, when an adversary exploits the $(1-\beta)b$ freedom it has in constructing $EB_p$ in a way which deviates from the Epool distribution. This kind of manipulation effects the difference between the issued and Epool distributions $\MC{ID}$ and $\MC{PD}$. 
+
+In a hiding $etx$s attack, the adversary simply does not disseminate some (or all) of its $etx$s. When it is chosen as the primary of a term, it includes some (up to $(1-\beta)\cdot b)$ hidden $etx$s in its Eblock. These $etx$s are now part of the blockchain, but were never issued (by our definition), so of course they cause a deviation of $\MC{CD}^r$ and $\mathcal{DI}$. 
+
+Unfair sampling clearly hurts \textit{short-term fairness}. However, it can have little effect on the long-term fairness, as it only affects the set $GEP^r$ which is a very small set compared with the entire blockchain history. The Hiding attack can effect both long-term and short-term fairness.
+
+\red{THIS SHOULD GO CLOSER TO THE PROOF, IN AN INTUITION PART FOR THE PROOF:} These $etx$s comprise the main part of what we relate to in the proof as $A^r\setminus I^r$ - the appended (absolute) $etx$s minus the issued $etx$s. To what extent this can be done is controlled by the fact that the freedom of the adversary is limited by the $(1-\beta)$-fraction\footnote{We remark that the actual freedom of an adversary is less than $1-\beta$: It is hard to generate to an Eblock with exactly $\beta$ overlap. If one makes adversarial use of the entire $(1-\beta)$-fraction, there is no reason to assume the other $\beta$-fraction will overlap with enough committee members' Eblocks, and thus the Eblock might not be validated.}.
+
+\red{UNTIL HERE(IDO)}
+
+\red{IDO: I got until here for now (Friday morning}.
+\begin{definition}{\textbf{$\epsilon$-representation fairness}} A blockchain protocol is $\epsilon$-representation fair if the distance (in $\ell _1$ norm) between the accumulative-issuance distribution and the accumulative-appended distribution by term $r$ is at most $\epsilon+g(r)$, where $g(r)$ is a function that tends to $0$ when $r$ goes to infinity. That is,  $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}\leq \epsilon+g(r)$ and $\lim _{r\rightarrow \infty}g(r)=0$.
+\end{definition}
+ 
+%MAYA!!! For next version define fairness for individual node and prove that it is epsilon\(n-f) safe. 
+To define exactly the $\epsilon$ and $g$ for which Gruffalo is representation fair, we make the following notations: 
+\begin{enumerate}
+    \item We denote by $\delta_f$ the fraction of terms with Byzantine primary's. We remark that due to the \textit{election fairness} of Gruffalo, this number is at most $\frac{f}{n}$ for large enough $r$.
+    \item We denote by $MAX_{Epool}$ the maximal size of an Epool in the network. 
+    \item We denote by $MAX_{dis}$ the maximal number of $etx$s that can be dissipated in the network at a given time. 
+\end{enumerate}
+
+
+\begin{theorem}{\textbf{(Representation Fairness)}} Gruffalo is $\epsilon$-representation fair for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+2MAX_{Epool}}{b\cdot r}$.
+\end{theorem}
+
+Let us first go over the main ideas used in the proof. It is meaningful to understand what kind of behavior may result in a difference between $\mathcal{DA}^r$ and $\mathcal{DI}^r$. First observe that if all nodes follow the protocol, close-to-perfect representation fairness is achieved. 
+%This leaves us to analyze which adversarial manipulations may deviate $\mathcal{DA}^r$ and $\mathcal{DI}^r$. 
+There are two adversarial manipulations, which we refer to as \emph{hiding $etx$s} and \emph{unfair sampling}.
+
+In a hiding $etx$s attack, the adversary simply does not disseminate some (or all) of its $etx$s. When it is chosen as the primary of a term, it includes as many of the hidden $etx$s in its Eblock. These $etx$s are now part of the blockchain, but were never issued (by our definition), so of course they cause a deviation from $\mathcal{DI}^r$. These $etx$s comprise the main part of what we relate to in the proof as $A^r\setminus I^r$ - the appended (absolute) $etx$s minus the issued $etx$s. To what extent this can be done is controlled by the fact that the freedom of the adversary is limited by the $(1-\beta)$-fraction\footnote{We remark that the actual freedom of an adversary is less than $1-\beta$: It is hard to generate to an Eblock with exactly $\beta$ overlap. If one makes adversarial use of the entire $(1-\beta)$-fraction, there is no reason to assume the other $\beta$-fraction will overlap with enough committee members' Eblocks, and thus the Eblock might not be validated.}. 
+
+The second attack is unfair sampling, which is simply exploiting the $(1-\beta)$ freedom in constructing $EB_p$ in a way which deviates from the distribution seen in the primary's Epool. This kind of manipulation effects the set $I^r\setminus A^r$, which is bounded by the maximal Epool size $MAX_{Epool}$\footnote{We believe the bound on this kind of attack can be improved by considering how large a correct threshold $TH_i$ can be, and adding a condition to validate it. We leave that for future work.}.
+
+%Other factors which come into play in the proof, e.g. $MAX_{dis}$, are less significant and are due mainly to network latency.
+
+\begin{proof}
+Fix some correct node $i$ and a term number $r$. As explained above, we assume that the accumulative issuance distribution is the same as the accumulative distribution of $etx$s received by node $i$. Thus we denote $i$'s received $etx$ distribution by $\mathcal{DI}^r$. We use the following notations: denote by $A^r$ the set of $etx$s that were appended to the blockchain by term $r$, and by $I^{r}$ the set of $etx$s that $i$ received by term $r$. $|A^r|\cdot \mathcal{DA}^r$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s appended to the blockchain by term $r$. Similarly, $|I^r|\cdot \mathcal{DI}^{r}$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s that $i$ received by term $r$. 
+For the proof, we rely on the following lemmas.
+%As justified previously in this section, we can assume that the accumulative issuance distribution is the same as the $i$'s accumulative received distribution of $etx$s. Formally, node $i$'s \emph{accumulative received distribution} by term $r$, is a probability vector of length $n$ whose value in coordinate $j$ is the fraction of $etx$s owned by node $j$ that node $i$ received by term $r$. Since these two distributions are identical, we denote the accumulative received distribution of node $i$ by $\mathcal{DI}^r$ from this point on.
+%\red{MAYBE ADD A SHORT EXPLANATION /INTRODUCTON TO THE PROOF}
+
+\begin{lemma} \label{lemma:rep_symetric}
+\begin{equation} \label{eq:rep_symetric}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot\mathcal{DI}^{r}}\leq \left | A^r \triangle I^{r} \right | 
+\end{equation}
+where $\triangle$ is the symmetric difference between the sets. 
+\end{lemma}
+\begin{lemma} \label{lemma:rep_AminusI} 
+ \begin{equation}|A^r\Delta I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+MAX_\text{Epool}
+ \end{equation}
+ where $\beta<1$ is the intersection parameter in validation \ref{rep:highload_cond2}.
+\end{lemma}
+
+%\begin{equation} \label{eq:rep_abs}
+%\left| |I^{r}|-|A^r|\right| \leq max\{|I^{r}/A^r|,|A^r/I^{r}|\} \leq max \{ \delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h}\cdot \sqrt{b}\right )+L, MAX_{Epool}\}
+%\end{equation}
+%Asymptotically, $\delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h} \sqrt{b}\right )+L$ dominates since in grows with $r$ while $MAX_{Epool}$ is a constant. 
+
+
+We defer the proof of the lemmas to after the theorem. We begin by bounding $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}$,
+\begin{align}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^r+|I^r|\cdot \mathcal{DI}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{1}{|A^r|}\cdot \norm{(|I^r|-|A^{r}|)\cdot \mathcal{DI}^{r}} \label{eq:rep_111}\\
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{\left ||I^r|-|A^{r}|\right |}{|A^r|}\cdot \norm{\mathcal{DI}^{r}} \label{eq:rep_222}
+\end{align}
+Where inequality \ref{eq:rep_111} follows from the triangle inequality. 
+From elementary set identities, 
+\begin{equation}
+|I^{r}|-|A^r|=|I^r\setminus A^r|-|A^r\setminus I^r|
+\end{equation}
+
+Thus, 
+\begin{equation}\label{eq:rep_diff}
+\left||I^{r}|-|A^r|\right|\leq \text{max}\{|I^r\setminus A^r|,|A^r\setminus I^r|\}\leq |A^r\triangle I^r|
+\end{equation}
+
+Plugging in the bounds from lemma \ref{lemma:rep_symetric} and equation \ref{eq:rep_diff} in equation \ref{eq:rep_222} we get,
+\begin{equation}\begin{split} 
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& \leq \frac{1}{|A^r|} \cdot \left | A^r \triangle I^{r} \right | + \frac{\left | A^r \triangle I^{r} \right |}{|A^r|} \cdot \norm{\mathcal {DI}^{r} }\\
+& =\frac{2\cdot | A^r \triangle I^{r}|}{b\cdot r}
+\end{split}\end{equation}
+Where the last equality follows since $\norm{\mathcal{DI}^r}=1$ and $\left| A^r \right|=b\cdot r$.
+Using lemma \ref{lemma:rep_AminusI} in the last line we get
+\begin{equation}\begin{split}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}
+& \leq \frac{2}{b\cdot r} \left(\delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}\right)\\
+&=2\cdot \delta_f\cdot (1-\beta)+2\cdot \frac{MAX_\text{dis}+ MAX_{Epool}}{b\cdot r}
+%& = (4-4\alpha)\cdot \delta_f +\frac{4\cdot c_{\alpha,\lambda}}{\sqrt{b}\cdot r}+\frac{2L+2MAX_{Epool}}{b\cdot r}
+\end{split}\end{equation}
+Therefore, the theorem follows for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+ 2MAX_{Epool}}{b\cdot r}$.
+\end{proof}
+We turn to proving the lemmas we used in the proof. 
+\begin{proof}\textbf{(Proof of lemma \ref{lemma:rep_symetric})}
+For $j=1,\dots,n$ define $N_j=\left(|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}\right)_j$. From the $\ell _1$ norm definition we have that
+\begin{equation} \label{eq:rep_disN}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}} =\sum _{j=1}^n \left |N_j \right |
+\end{equation} 
+Assume without loss of generality that $N_j\geq 0$ (the reasoning for the case $N_j<0$ is explained in brackets). There are at least $N_j$ $etx$s of node $j$ that have been (have not been) appended to the blockchain by term $r$, but have not been (have been) received by $i$. Put differently, there are at least $N_j$ $etx$s owned by $j$ in the set $A^r \setminus I^{r}$ (in the set $I^{r}\setminus A^r$). This correspondence can be used to define an injective map between $\sum _{j=1}^n \left |N_j \right |$ and the set $A^r \triangle I^{r}$. Thus,
+\begin{equation}\label{eq:rep_injection}
+\sum _{j=1}^n \left |N_j \right |\leq |A^r \triangle I^{r}| 
+\end{equation}
+Note that this is indeed an inequality and not an equality. For example, consider the case where there are $k$ $etx$s owned by node $j$ in $A^r$, and $k$ \emph{other} $etx$s owned by $j$ in $I^r$. Thus $N_j=0$ but the symmetric difference on the right gains a factor of $2k$.
+
+Combining equation \ref{eq:rep_disN} and \ref{eq:rep_injection} we get
+\begin{equation}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}}\leq  |A^r \triangle I^{r}| 
+\end{equation}
+\end{proof}
+ %& \leq \frac{2| A^r \triangle I^{r}|}{A^r}\\
+ %& \leq  \frac{1}{|A^r|} \left ((1- (\alpha-\delta )b\cdot \frac{f}{n}\cdot r+ L+MAX_{Epool}\right ) +\frac{\left ||I^r|-|A^r|\right|}{|A^r|} \cdot \norm{ \mathcal {DA}^{r}}\\
+%MAYA !!!! for next version explain that we actually proved something stronger regarding fairness towards users
+
+\begin{proof}(\textbf{Proof of lemma \ref{lemma:rep_AminusI}}.)
+The set $I^{r}\setminus A^r$ contains $etx$s that $i$ received but have not been added to the blockchain by term $r$. These are exactly the $etx$s that are in $i$'s Epool in term $r$. Thus if $MAX_{Epool}$ is the maximum size of an Epool then $|I^{r}\setminus A^r|\leq MAX_{Epool}$. 
+
+We turn to bounding  $|A^{r}\setminus I^r|$.
+There are two types of $etx$s in the set $A^r\setminus I^r$. The first type are $etx$s that are on route to $i$ and have not arrived yet, but have already been included in the blockchain. The number of such $etx$s is bounded by $MAX_\text{dis}$, induced by the maximal number of $etx$s that can be disseminated in the network at a given time. 
+
+The second type of $etx$s in $A^r \setminus I^{r}$ are $etx$s that are what we refered to earlier as \textit{hiding} $etx$s, i.e., those that were not disseminated to the network but are included in Eblocks constructed by adversarial primaries. We note that these $etx$s are never received by node $i$, or any other correct node, and thus it is morally wrong to include them in the blockchain in the first place. However, when a node sees an $etx$ included in the Eblock which it did not receive to add to its Epool yet, it has no way of knowing (at that time) if this $etx$ is of the first or second type.  
+
+We call a term in which the primary that got its Eblock committed was faulty a `faulty term'. For a faulty term $t$ we denote by $\widetilde{EB^t}$ the Eblock committed on term $t$. Similarly, we call a term $t$ in which the primary was non faulty a `non faulty term', and denote its committed Eblock by $EB^t$.  From  the previous explanation we get that
+\begin{align}
+A^r\setminus I^r &= \left(\bigcup_{t\leq r \text{ faulty term}}\widetilde{EB^t} \bigcup_{t\leq r \text{ non faulty term}} EB^t\right)\mathbin{\big\backslash} I^r\\
+&= \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \mathbin{\big\backslash} I^r \right ) \bigcup_{t\leq r \text{ non faulty term}} \left (EB^t \mathbin{\big\backslash} I^r \right )\label{eq:rep_e}
+\end{align}
+For the non faulty terms, the $etx$s in $EB^t$ that are not in $I^r$ are only $etx$s of the first type. Denote by $L^r$ the set of $etx$s that are on route and have not yet been disseminated to node $i$ by term $r$. Then we have that,
+\begin{equation} \label{eq:rep_nonfault}
+\bigcup_{t\leq r \text{ non-faulty term}} \left (EB^t\setminus I^r \right )\subseteq L^r
+\end{equation}
+$L^r$ is bounded, by definition, by $MAX_{dis}$.
+
+Next, for a term $t$ with a faulty primary, we wish to bound $ \widetilde{EB^t} \mathbin{\big\backslash} I^r$. Recall that we denote the $b$ lowest hashed $etx$s in node $i$'s term $t$ Epool by $EB_i^t$. As a start, consider the case $\widetilde{EB^t}$ meets validation condition \ref{rep:highload_cond2} of node $i$. This means that the intersection between $EB_i^t$ and $\widetilde{EB^t}$ is at least $\beta \cdot b$, and so $\left |\widetilde{EB^t}\setminus EB^t_i\right |\leq (1-\beta)\cdot b$. Recall that $I^r$ is the set of all $i$'s received $etx$s by term $r$ and thus $I^r \supseteq EB_i^t$. It follows that $\widetilde{EB^t} \mathbin{\big\backslash} I^r \subseteq \widetilde{EB^t} \setminus EB_i^t $, and thus $\left | \widetilde{EB^t} \mathbin{\big\backslash} I^r \right|\leq (1-\beta)\cdot b$.
+
+In general, it is possible that $\widetilde{EB^t}$ did not meet validation condition \ref{rep:highload_cond2} of node $i$. However, since $\widetilde{EB^t}$ was committed, there exists a correct node $k_t$ that validated  $\widetilde{EB^t}$. We also know that $I^r\supseteq EB^t_{k_t}\setminus L^r$ since $etx$s that are in $EB^t_{k_t}$ are in correct node's $k_t$ Epool, and thus if they are not in $L^r$ then they have already been received by $i$, and thus they are in $I^r$. Hence,
+\begin{equation}\widetilde{EB^t}\setminus I^r \subseteq \widetilde{EB^t} \setminus \left (EB_{k_t}\setminus L^r\right )\subseteq \left (\widetilde{EB^t} \setminus EB_{k_t}\right)\cup L^r 
+\end{equation}
+Taking a union over the faulty terms results in  
+\begin{equation}\label{eq:rep_fault}
+\bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus I^r\right) \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{equation}
+Collecting the bounds of equations \ref{eq:rep_nonfault} and \ref{eq:rep_fault} and  using them in equation \ref{eq:rep_e} we get,
+\begin{equation}\begin{split} \label{eq:rep_sets}
+A^r \setminus I^r \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{split}\end{equation}
+
+%\bigcup_{t\leq r \text{ faulty term}}\{\widetilde{EB^t}\setminus I^r\}\bigcup \{\text{etxs on route on term $r$}\}
+%Fortunately, if it wishes for its Eblock to be approved it cannot include too many such $etx$s, since the intersection between its proposed Eblock and the Eblock `expected'  by most correct nodes in the committee should be large. Moreover, the number of terms where the primary is byzantine is also bounded. Both of these factors come into consideration in the proof. 
+
+We turn to bounding the orders of the sets in equation \ref{eq:rep_sets}. Since $k_t$ is a correct node who validated $\widetilde{EB^t}$, the same reasoning as before shows that $\left |\widetilde{EB^t}\setminus EB^t_{k_t}\right |\leq (1-\beta)\cdot b$. We have:
+\begin{equation} 
+|A^r\setminus I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}
+\end{equation}
+
+And we conclude that, 
+\begin{equation}\label{eq:rep_symbound}|A^r \triangle I^{r}|= |A^r\setminus I^{r}|+|I^{r}\setminus A^r|\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}
+\end{equation}
+\end{proof}
+
+
+\subsubsection*{Short-term fairness}
+Above we showed that \emph{over time}, a node cannot artificially enlarge its fraction of appended transactions - the blockchain indeed faithfully represents the issuance distribution. Part of the proof above relied on the fact that once the blockchain is big enough, the Epool is too small to have any effect on the distribution (this was expressed by the parameter $MAX_{Epool}$). We wish to ensure fairness not just over time, but \emph{all the time}, and we do so in two ways. The first is \textit{Epool fairness}, which considers the distribution of $etx$s in the Epool at any given moment, which we make sure is close to the real distribution. The second, \textit{time fairness}, considers with the average waiting time of an $etx$ during a highload epoch, and assuring that this time depend solely on the Epool size, and not on the owner node of the $etx$. We will need the following notations and definitions: 
+\begin{enumerate}
+	\item $x^r(i)=(x^r_1,x^r_2,\dots,x^r_n)$ is the probability vector of the $etx$ distribution in $EP_i$, where $x^r_j$ is the fraction of $etx$s in  $EP_i$ associated to node $j$.
+	\item $y^r=(y^r_1,y^r_2,\dots,y^r_n)$ is the distribution of the $etx$s in $EB^r$.
+
+	\item By a slight abuse of notation, denote by $x^0$ the real issued distribution, namely $x^0=\mathcal{DI}$ as defined above. As before, for simplicity of analysis we think of this distribution as fixed throughout the epoch.
+\end{enumerate}
+In addition to the assumption that the issuance distribution is fixed, we also assume that the issuance \emph{rate} is fixed, on $b$ $etx$s each term. This keeps the Epool size fixed, say at $\Gamma b$ for some $\Gamma\geq 1$. Under these assumptions, the number of node $j$'s $etx$s in the Epool is $x^r_j\cdot \Gamma b$, and at each term, user $j$ issues $x^0_j\cdot b$ $etx$s which are added to the Epool.  We remark that while these assumptions limit the generality of the analysis, we believe the power of Epool and time fairness is manifested already in this simplified setting. Moreover, the general case can be derived using the same methods we use here.
+
+\textbf{Epool fairness.} Fix a node $i$. For brevity, we omit $i$ from the notations. We would like to show that for all $r$, $x^r$ is close to $x^0$. Notice that this question is deeply related to the question of whether $y^r$ is close to $x^0$,  but they are not equivalent - a slight bias in $y^r$ can accumulate over time to a significant bias in $x^r$. To answer these questions, we will use the established fact that $y^r$ is very close to $x^r$. For correct terms, the random hash ordering assures $y^r=x^r$. In faulty terms, the correlated sampling only guarantees that a $\beta$ fraction of $EB$ is distributed according to $x^r$. The question is thus reduced to whether or not the $(1-\beta)$ fraction of $EB$ can have an accumulative (short term) effect, and how long can this effect last. Our result in this context is the following:
+
+\begin{lemma}
+    Suppose $r_0$ is a faulty term followed by $k$ correct terms. Assume that $x^{r_0}=x^0$, which means that at term $r_0$ the Epool distribution is the real issuance distribution. For a correct user $j$, we have  
+    $$|x_j^0-x^{r_0+k}_j|\leq\left(1-\beta\right)\frac{1}{\Gamma}\left(1-\frac{1}{\Gamma}\right)^kx^0_j$$
+     That is, the difference between the 'real' distribution of $j$'s $etx$s and the distribution as seen in the Epool decreases exponentially in the number of consecutive correct terms.
+\end{lemma}
+
+We remark that there are, of course, other scenarios to consider - particularly: 
+\begin{enumerate}
+\item $x^{r_0}\ne x^0$.
+\item During the $k$ terms after $r_0$ there is another Byzantine primary.
+\end{enumerate}
+However, we stress that the larger the initial disruption is, the 'correction' rate in correct terms would also increase. This gives intuition for the first scenario. Regarding the second scenario we note that the number of terms required for an effective recovery to the real distribution is rather small (around 3 terms, see the examples right after the proof below). For this reason, we do not expect many Byzantine primaries before the distribution recovers. When such a case does occur, we can still rely on the above remark, namely that the rate of convergence back to the real distribution is fast enough so as to prevent an accumulative disruption of the distribution $x^r$. These arguments give a (informal) justification for the assumptions in the lemma.
+
+To get an intuition for the proof, note that as we permit a freedom of $(1-\beta)$-fraction in the construction of $EB^r$, we can think of $y$ as the sum of two vectors - the correct fraction and the faulty fraction. Denote this sum $y^r=(1-\beta)y^r_f+\beta x^r$, where $y^r_f$ is the probability vector of the distribution of the faulty component. Now, observe that from node $j$'s perspective, what matters is $|x_j^r-x_j^0|$, so we can focus our analysis on a single coordinate, $1\leq j\leq n$. In the worst case scenario (from $j$'s perspective), $(y_f^r)_j=0$, that is, the faulty component does not include any $etx$ of node $j$. We thus assume this is the case in every faulty term. As a result, immediately after a faulty term the probability vector $x^{r+1}$ is biased in favour of node $j$, i.e., the fraction of $j$ in $x^{r+1}$ is larger than its fraction in the real issuance distribution. This means that correct nodes would construct Eblocks with a larger fraction of $j$'s $etx$s than $j$'s issuance rate, and will continue to do so until $x^r_j$ would again reach its 'real' value of $x^0_j$. The proof simply makes this idea precise. 
+
+\begin{proof} 
+	Suppose $x^r=x^0$, and that $r$ is a faulty term. We have 
+    $$x^{r+1}=x^r+\frac{1}{\Gamma b}(b\cdot x^0-b\cdot y^r)=x^0+\frac{1}{\Gamma b}(b\cdot x^0-b\cdot(\beta x^0+(1-\beta) y^r_f)$$
+    where $b\cdot x^0$ accounts for the issued $etx$s of this term, and $-b\cdot y^r$ accounts for the appended $etx$s of the term (i.e., for $EB^r$). Considering only the $j$'th coordinate, and assuming $(y^r_f)_j=0$, we get $x^{r+1}_j=x^0_j+\frac{1}{\Gamma}\cdot(1-\beta)x^0_j$ and hence $|x^{r+1}_j-x^0_j|=\frac{1-\beta}{\Gamma}\cdot x^0_j$. 
+    
+    $\frac{1-\beta}{\Gamma}$ is the 'damage' the faulty caused to node $j$. Now the correct terms start to 'stabilize' the system. As $j$'s fraction in $x^{r+1}$ is now larger than it's fraction in $x^0$, at each term there would be more of $j$'s $etx$s appended to the blockchain than $etx$s issued by $j$. In other words, for a correct term $r+k$, $y^{r+k}=x^{r+k}$, so we get in the general case:
+    $$x^{r+k}=x^{r+(k-1)}+\frac{1}{\Gamma b}(b\cdot x^0-b\cdot x^{r+(k-1)})=(1-\frac{1}{\Gamma})x^{r+(k-1)}+\frac{1}{\Gamma}x^0$$
+    This gives an inductive formula for $x^{r+k}$. We can now prove that $x^{r+k}_j=\left(1+\left(1-\beta\right)\frac{1}{\Gamma}\left(1-\frac{1}{\Gamma}\right)^k\right)x^0_j$; the base case was shown above, for $k=0$, in the faulty term. Assume the formula holds for $k-1$, and by the formula for $x^{r+k}_j$ we get
+    $$x^{r+k}_j=(1-\frac{1}{\Gamma})x^{r+(k-1)}+\frac{1}{\Gamma }x^0=(1-\frac{1}{\Gamma})(1+(1-\beta)\frac{1}{\Gamma}(1-\frac{1}{\Gamma})^{k-1}x^0_j+\frac{1}{\Gamma}x^0_j$$
+    Rearranging, we get
+    $$x^{r+k}_j=(1-\frac{1}{\Gamma})x^0_j+((1-\beta)\frac{1}{\Gamma}(1-\frac{1}{\Gamma})^k)x^0_j+\frac{1}{\Gamma}x^j_0$$
+    The $\frac{1}{\Gamma}x^0_j$ factors cancel each other, and we are left with $x^{r+k}_j=\left(1+\left(1-\beta\right)\frac{1}{\Gamma}\left(1-\frac{1}{\Gamma}\right)^k\right)x^0_j$, completing the inductive proof. We conclude that $|x^{r+k}_j-x_j^0|\leq\left(1-\beta\right)\frac{1}{\Gamma}\left(1-\frac{1}{\Gamma}\right)^kx^0_j$ as claimed.
+\end{proof}
+\red{MAKE THE TABLE}
+The following table gives the distance $|x^0_j-x^{r+k}_j|$ for different values of $b,\Gamma$ and $k$.
+
+
+For example, if $\Gamma'=10$ and $\beta=\frac{3}{4}$, within 3 terms the maximal distance between Epool distribution and the real distribution is $\frac{1}{50}x^0_j$. For the same parameters with $\Gamma'=20$, the distance within 4 terms is less than $\frac{1}{90}x^0_j$. It is easily seen that for fixed $k$ (say, $k=4$), the bound $(1+(1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)$ is getting smaller as $\Gamma'$ grows, which is the scenario we have in mind in a highload mindset.
+
+\red{REMARK}
+red{Recall that we consider two attacks a faulty primary can make, namely \textit{hiding $etx$s} and \textit{unfair sampling}. Notice that from the viewpoint of node $j$, it doesn't matter which attack the adversary is performing: in both we are inclined to assume $(y_f^r)_j=0$. The kind of the attack effects only the faulty's coordinate in $y^r$, which we ignor as we don't care about fairness towards faulties.}
+
+\subsection{Representation Fairness}\label{subsec:repfair}
+%Recall that in our terminology, the users are the ones that issue $etx$s, and each user is associated with a patron node. We call this node the \textit{owner} of the $etx$. 
+%Thus we wish to show that we are fair regarding the representation of owner nodes in an Eblock. That is, we would like to show that the distribution over the owner nodes in which $etx$s are \emph{issued} is close to the distribution over the owner nodes in which $etx$s are \emph{appended} to the blockchain. 
+The motivation behind representation fairness is to assure that if a node issues, say, $10\%$ of the overall $etx$s, then the percentage of this node's $etx$s in the blockchain is close to $10\%$ - no matter how an adversary tries to manipulate. 
+%Clearly, the issuance distribution (that is, the percentage of each node's issued transactions) is not fixed and slightly changes from term to term. Thus we take into account the term when considering these distributions. Moreover, when the issuance distribution suddenly changes, one can not hope that the distribution over the $etx$s appended to the blockchain will 'catch up' with it immediately. Therefore, it makes sense to consider the \emph{accumulative} issuance distribution and the \emph{accumulative} appended distribution up to some term number $r$, and show that they are close to each other. We give a formal definition of the two distributions at term $r$, where we define the beginning of term $r$ as the time the last correct node reveals $DB^{r-1}$. 
+We assume a constant issuance distribution and consider the \emph{accumulative} issuance distribution and the \emph{accumulative} appended distribution up to some term number $r$, and show that they are close to each other. We give a formal definition of the two distributions at term $r$, where we define the \emph{beginning of term $r$} as the time the last correct node reveals $DB^{r-1}$.
+\begin{definition}{\textbf{Accumulative-issuance distribution}} \label{def:rep_iss} The accumulative-issuance distribution by term $r$ is a probability vector $\mathcal{DI}^r=(DI_1^r,\dots,DI_n^r)$ where $DI_j^r$ is the fraction of $etx$s owned by node $j$ that were issued by \red{the beginning of} term $r$. 
+\end{definition}
+
+\begin{definition}{\textbf{Accumulative-appended distribution}} The accumulative-appended distribution by term $r$ is a probability vector $\mathcal{DA}^r=\left(DA^r_1,\dots , DA^r_n \right )$ where $DA_j^r$ is the fraction of $etx$s owned by node $j$ that were appended to the blockchain by term $r$ \red{(including?)}. 
+\end{definition}
+
+%Each node receives $etx$s disseminated in the network and adds them to its Epool. A perfect network would disseminate the $etx$s in such a way that the distribution over the owner nodes \textit{received} by some node $i$ is identical to the issuance distribution of $etx$s. In practice, the issued and received distributions can slightly differ. However, for simplicity we neglect this minor difference and assume the accumulative received distribution is equal to the accumulative issued distribution. 
+
+Recall that the method for constructing an Eblock emulates random sampling, so we can expect $\mathcal{DA}^r$ and $\mathcal{DI}^r$ to be very close to each other over time. However, an adversarial primary might select the $b$ $etx$s for its Eblock differently from the intended method. If the Eblock it proposes is \emph{very} different from the intended method, then a correct node would not approve the adversary's Eblock, and no actual harm is done in terms of fairness. However, a less greedy adversary might choose the $b$ $etx$s to add to its Eblock only \emph{slightly} differently from the protocol's method. Put differently, a clever adversary exploits the allowed difference of $(1-\beta)\cdot b$ $etx$s between the proposed and expected Eblocks for its own benefit. Thus, it is unavoidable that adversaries can, to some extent, cause the accumulative-appended distribution to differ from the accumulative-issuance distribution (which is faithfully represented by correct Epools). 
+
+We formally define the term of $\epsilon$-representation fairness and prove that Gruffalo is fair in this sense. 
+
+\begin{definition}{\textbf{$\epsilon$-representation fairness}} A blockchain protocol is $\epsilon$-representation fair if the distance (in $\ell _1$ norm) between the accumulative-issuance distribution and the accumulative-appended distribution by term $r$ is at most $\epsilon+g(r)$, where $g(r)$ is a function that tends to $0$ when $r$ goes to infinity. That is,  $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}\leq \epsilon+g(r)$ and $\lim _{r\rightarrow \infty}g(r)=0$.
+\end{definition}
+ 
+%MAYA!!! For next version define fairness for individual node and prove that it is epsilon\(n-f) safe. 
+To define exactly the $\epsilon$ and $g$ for which Gruffalo is representation fair, we make the following notations: 
+\begin{enumerate}
+    \item We denote by $\delta_f$ the fraction of terms with Byzantine primary's. We remark that due to the \emph{election fairness}, this number should be close $\frac{f}{n}$.
+    \red{REMOVE: \item We denote by $MAX_{dis}$ the maximal number of $etx$s that can be dissipated in the network at a given time.} 
+\end{enumerate}
+
+\begin{theorem}{\textbf{(Representation Fairness)}} Gruffalo is $\epsilon$-representation fair for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+2MAX_{Epool}}{b\cdot r}$.
+\end{theorem}
+
+Let us first go over the main ideas used in the proof. It is meaningful to understand what kind of behavior may result in a difference between $\mathcal{DA}^r$ and $\mathcal{DI}^r$. First observe that if all nodes follow the protocol, close-to-perfect representation fairness is achieved. 
+%This leaves us to analyze which adversarial manipulations may deviate $\mathcal{DA}^r$ and $\mathcal{DI}^r$. 
+There are two adversarial manipulations, which we refer to as \emph{hiding $etx$s} and \emph{unfair sampling}.
+
+In a hiding $etx$s attack, the adversary simply does not disseminate some (or all) of its $etx$s. When it is chosen as the primary of a term, it includes as many of the hidden $etx$s in its Eblock. These $etx$s are now part of the blockchain, but were never issued (by our definition), so of course they cause a deviation from $\mathcal{DI}^r$. These $etx$s comprise the main part of what we relate to in the proof as $A^r\setminus I^r$ - the appended (absolute) $etx$s minus the issued $etx$s. To what extent this can be done is controlled by the fact that the freedom of the adversary is limited by the $(1-\beta)$-fraction\footnote{We remark that the actual freedom of an adversary is less than $1-\beta$: it is hard to generate an Eblock with exactly $\beta$ overlap. If one makes adversarial use of the entire $(1-\beta)$-fraction, there is no reason to assume the other $\beta$-fraction will overlap with enough committee members' Eblocks, and thus the Eblock might not be validated.}. 
+
+The second attack is unfair sampling, which is simply exploiting the $(1-\beta) \cdot b$ freedom in constructing $EB_p$ in a way which deviates from the distribution seen in the primary's Epool. This kind of manipulation effects the set $I^r\setminus A^r$, which is bounded by the maximal Epool size $MAX_{Epool}$.
+%\footnote{We believe the bound on this kind of attack can be improved by considering how large a correct threshold $TH_i$ can be, and adding a condition to validate it. We leave that for future work.}
+
+%Other factors which come into play in the proof, e.g. $MAX_{dis}$, are less significant and are due mainly to network latency.
+
+\begin{proof}
+Fix some correct node $i$ and a term number $r$. As explained above, we assume that the accumulative issuance distribution is the same as the accumulative distribution of $etx$s received by node $i$. Thus we denote $i$'s received $etx$ distribution by $\mathcal{DI}^r$. We use the following notations: denote by $A^r$ the set of $etx$s that were appended to the blockchain by term $r$, and by $I^{r}$ the set of $etx$s that $i$ received by term $r$. $|A^r|\cdot \mathcal{DA}^r$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s appended to the blockchain by term $r$. Similarly, $|I^r|\cdot \mathcal{DI}^{r}$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s that $i$ received by term $r$. 
+For the proof, we rely on the following lemmas.
+%As justified previously in this section, we can assume that the accumulative issuance distribution is the same as the $i$'s accumulative received distribution of $etx$s. Formally, node $i$'s \emph{accumulative received distribution} by term $r$, is a probability vector of length $n$ whose value in coordinate $j$ is the fraction of $etx$s owned by node $j$ that node $i$ received by term $r$. Since these two distributions are identical, we denote the accumulative received distribution of node $i$ by $\mathcal{DI}^r$ from this point on.
+%\red{MAYBE ADD A SHORT EXPLANATION /INTRODUCTON TO THE PROOF}
+
+\begin{lemma} \label{lemma:rep_symetric}
+\begin{equation} \label{eq:rep_symetric}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot\mathcal{DI}^{r}}\leq \left | A^r \triangle I^{r} \right | 
+\end{equation}
+where $\triangle$ is the symmetric difference between the sets. 
+\end{lemma}
+\begin{lemma} \label{lemma:rep_AminusI} 
+ \begin{equation}|A^r\Delta I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+MAX_\text{Epool}
+ \end{equation}
+ where $\beta<1$ is the intersection parameter in validation \ref{rep:highload_cond2}.
+\end{lemma}
+
+%\begin{equation} \label{eq:rep_abs}
+%\left| |I^{r}|-|A^r|\right| \leq max\{|I^{r}/A^r|,|A^r/I^{r}|\} \leq max \{ \delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h}\cdot \sqrt{b}\right )+L, MAX_{Epool}\}
+%\end{equation}
+%Asymptotically, $\delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h} \sqrt{b}\right )+L$ dominates since in grows with $r$ while $MAX_{Epool}$ is a constant. 
+
+We defer the proof of the lemmas to after the theorem. We begin by bounding $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}$,
+\begin{align}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^r+|I^r|\cdot \mathcal{DI}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{1}{|A^r|}\cdot \norm{(|I^r|-|A^{r}|)\cdot \mathcal{DI}^{r}} \label{eq:rep_111}\\
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{\left ||I^r|-|A^{r}|\right |}{|A^r|}\cdot \norm{\mathcal{DI}^{r}} \label{eq:rep_222}
+\end{align}
+Where inequality \ref{eq:rep_111} follows from the triangle inequality. 
+From elementary set identities, 
+\begin{equation}
+|I^{r}|-|A^r|=|I^r\setminus A^r|-|A^r\setminus I^r|
+\end{equation}
+
+Thus, 
+\begin{equation}\label{eq:rep_diff}
+\left||I^{r}|-|A^r|\right|\leq \text{max}\{|I^r\setminus A^r|,|A^r\setminus I^r|\}\leq |A^r\triangle I^r|
+\end{equation}
+
+Plugging in the bounds from lemma \ref{lemma:rep_symetric} and equation \ref{eq:rep_diff} in equation \ref{eq:rep_222} we get,
+\begin{equation}\begin{split} 
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& \leq \frac{1}{|A^r|} \cdot \left | A^r \triangle I^{r} \right | + \frac{\left | A^r \triangle I^{r} \right |}{|A^r|} \cdot \norm{\mathcal {DI}^{r} }\\
+& =\frac{2\cdot | A^r \triangle I^{r}|}{b\cdot r}
+\end{split}\end{equation}
+Where the last equality follows since $\norm{\mathcal{DI}^r}=1$ and $\left| A^r \right|=b\cdot r$.
+Using lemma \ref{lemma:rep_AminusI} in the last line we get
+\begin{equation}\begin{split}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}
+& \leq \frac{2}{b\cdot r} \left(\delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}\right)\\
+&=2\cdot \delta_f\cdot (1-\beta)+2\cdot \frac{MAX_\text{dis}+ MAX_{Epool}}{b\cdot r}
+%& = (4-4\alpha)\cdot \delta_f +\frac{4\cdot c_{\alpha,\lambda}}{\sqrt{b}\cdot r}+\frac{2L+2MAX_{Epool}}{b\cdot r}
+\end{split}\end{equation}
+Therefore, the theorem follows for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+ 2MAX_{Epool}}{b\cdot r}$.
+\end{proof}
+We turn to proving the lemmas we used in the proof. 
+\begin{proof}\textbf{(Proof of lemma \ref{lemma:rep_symetric})}
+For $j=1,\dots,n$ define $N_j=\left(|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}\right)_j$. From the $\ell _1$ norm definition we have that
+\begin{equation} \label{eq:rep_disN}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}} =\sum _{j=1}^n \left |N_j \right |
+\end{equation} 
+Assume without loss of generality that $N_j\geq 0$ (the reasoning for the case $N_j<0$ is explained in brackets). There are at least $N_j$ $etx$s of node $j$ that have been (have not been) appended to the blockchain by term $r$, but have not been (have been) received by $i$. Put differently, there are at least $N_j$ $etx$s owned by $j$ in the set $A^r \setminus I^{r}$ (in the set $I^{r}\setminus A^r$). This correspondence can be used to define an injective map between $\sum _{j=1}^n \left |N_j \right |$ and the set $A^r \triangle I^{r}$. Thus,
+\begin{equation}\label{eq:rep_injection}
+\sum _{j=1}^n \left |N_j \right |\leq |A^r \triangle I^{r}| 
+\end{equation}
+Note that this is indeed an inequality and not an equality. For example, consider the case where there are $k$ $etx$s owned by node $j$ in $A^r$, and $k$ \emph{other} $etx$s owned by $j$ in $I^r$. Thus $N_j=0$ but the symmetric difference on the right gains a factor of $2k$.
+
+Combining equation \ref{eq:rep_disN} and \ref{eq:rep_injection} we get
+\begin{equation}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}}\leq  |A^r \triangle I^{r}| 
+\end{equation}
+\end{proof}
+ %& \leq \frac{2| A^r \triangle I^{r}|}{A^r}\\
+ %& \leq  \frac{1}{|A^r|} \left ((1- (\alpha-\delta )b\cdot \frac{f}{n}\cdot r+ L+MAX_{Epool}\right ) +\frac{\left ||I^r|-|A^r|\right|}{|A^r|} \cdot \norm{ \mathcal {DA}^{r}}\\
+%MAYA !!!! for next version explain that we actually proved something stronger regarding fairness towards users
+
+\begin{proof}(\textbf{Proof of lemma \ref{lemma:rep_AminusI}}.)
+The set $I^{r}\setminus A^r$ contains $etx$s that $i$ received but have not been added to the blockchain by term $r$. These are exactly the $etx$s that are in $i$'s Epool in term $r$. Thus if $MAX_{Epool}$ is the maximum size of an Epool then $|I^{r}\setminus A^r|\leq MAX_{Epool}$. 
+
+We turn to bounding  $|A^{r}\setminus I^r|$.
+There are two types of $etx$s in the set $A^r\setminus I^r$. The first type are $etx$s that are on route to $i$ and have not arrived yet, but have already been included in the blockchain. The number of such $etx$s is bounded by $MAX_\text{dis}$, induced by the maximal number of $etx$s that can be disseminated in the network at a given time. 
+
+The second type of $etx$s in $A^r \setminus I^{r}$ are $etx$s that are what we refered to earlier as \textit{hiding} $etx$s, i.e., those that were not disseminated to the network but are included in Eblocks constructed by adversarial primaries. We note that these $etx$s are never received by node $i$, or any other correct node, and thus it is morally wrong to include them in the blockchain in the first place. However, when a node sees an $etx$ included in the Eblock which it did not receive to add to its Epool yet, it has no way of knowing (at that time) if this $etx$ is of the first or second type.  
+
+We call a term in which the primary that got its Eblock committed was faulty a 'faulty term'. For a faulty term $t$ we denote by $\widetilde{EB^t}$ the Eblock committed on term $t$. Similarly, we call a term $t$ in which the primary was non faulty a `non faulty term', and denote its committed Eblock by $EB^t$.  From  the previous explanation we get that
+\begin{align}
+A^r\setminus I^r &= \left(\bigcup_{t\leq r \text{ faulty term}}\widetilde{EB^t} \bigcup_{t\leq r \text{ non faulty term}} EB^t\right)\mathbin{\big\backslash} I^r\\
+&= \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \mathbin{\big\backslash} I^r \right ) \bigcup_{t\leq r \text{ non faulty term}} \left (EB^t \mathbin{\big\backslash} I^r \right )\label{eq:rep_e}
+\end{align}
+For the non faulty terms, the $etx$s in $EB^t$ that are not in $I^r$ are only $etx$s of the first type. Denote by $L^r$ the set of $etx$s that are on route and have not yet been disseminated to node $i$ by term $r$. Then we have that,
+\begin{equation} \label{eq:rep_nonfault}
+\bigcup_{t\leq r \text{ non-faulty term}} \left (EB^t\setminus I^r \right )\subseteq L^r
+\end{equation}
+$L^r$ is bounded, by definition, by $MAX_{dis}$.
+
+Next, for a term $t$ with a faulty primary, we wish to bound $ \widetilde{EB^t} \mathbin{\big\backslash} I^r$. Recall that we denote the $b$ lowest hashed $etx$s in node $i$'s term $t$ Epool by $EB_i^t$. As a start, consider the case $\widetilde{EB^t}$ meets validation condition \ref{rep:highload_cond2} of node $i$. This means that the intersection between $EB_i^t$ and $\widetilde{EB^t}$ is at least $\beta \cdot b$, and so $\left |\widetilde{EB^t}\setminus EB^t_i\right |\leq (1-\beta)\cdot b$. Recall that $I^r$ is the set of all $i$'s received $etx$s by term $r$ and thus $I^r \supseteq EB_i^t$. It follows that $\widetilde{EB^t} \mathbin{\big\backslash} I^r \subseteq \widetilde{EB^t} \setminus EB_i^t $, and thus $\left | \widetilde{EB^t} \mathbin{\big\backslash} I^r \right|\leq (1-\beta)\cdot b$.
+
+In general, it is possible that $\widetilde{EB^t}$ did not meet validation condition \ref{rep:highload_cond2} of node $i$. However, since $\widetilde{EB^t}$ was committed, there exists a correct node $k_t$ that validated  $\widetilde{EB^t}$. We also know that $I^r\supseteq EB^t_{k_t}\setminus L^r$ since $etx$s that are in $EB^t_{k_t}$ are in correct node's $k_t$ Epool, and thus if they are not in $L^r$ then they have already been received by $i$, and thus they are in $I^r$. Hence,
+\begin{equation}\widetilde{EB^t}\setminus I^r \subseteq \widetilde{EB^t} \setminus \left (EB_{k_t}\setminus L^r\right )\subseteq \left (\widetilde{EB^t} \setminus EB_{k_t}\right)\cup L^r 
+\end{equation}
+Taking a union over the faulty terms results in  
+\begin{equation}\label{eq:rep_fault}
+\bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus I^r\right) \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{equation}
+Collecting the bounds of equations \ref{eq:rep_nonfault} and \ref{eq:rep_fault} and  using them in equation \ref{eq:rep_e} we get,
+\begin{equation}\begin{split} \label{eq:rep_sets}
+A^r \setminus I^r \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{split}\end{equation}
+
+%\bigcup_{t\leq r \text{ faulty term}}\{\widetilde{EB^t}\setminus I^r\}\bigcup \{\text{etxs on route on term $r$}\}
+%Fortunately, if it wishes for its Eblock to be approved it cannot include too many such $etx$s, since the intersection between its proposed Eblock and the Eblock `expected'  by most correct nodes in the committee should be large. Moreover, the number of terms where the primary is byzantine is also bounded. Both of these factors come into consideration in the proof. 
+
+We turn to bounding the orders of the sets in equation \ref{eq:rep_sets}. Since $k_t$ is a correct node who validated $\widetilde{EB^t}$, the same reasoning as before shows that $\left |\widetilde{EB^t}\setminus EB^t_{k_t}\right |\leq (1-\beta)\cdot b$. We have:
+\begin{equation} 
+|A^r\setminus I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}
+\end{equation}
+
+And we conclude that, 
+\begin{equation}\label{eq:rep_symbound}|A^r \triangle I^{r}|= |A^r\setminus I^{r}|+|I^{r}\setminus A^r|\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}
+\end{equation}
+\end{proof}
+
+\subsubsection*{Short-term fairness}
+Above we showed that \emph{over time}, a node cannot artificially enlarge its fraction of appended transactions - the blockchain $\epsilon$-represents the issuance distribution. Part of the proof above relied on the fact that once the blockchain is big enough, the Epool is too small to have any effect (that was expressed by the parameter $MAX_{Epool}$). We wish to ensure fairness not just over time, but \emph{all the time}. This can be tackled in two ways: one is to consider the distribution of $etx$s in the Epool at any given moment, and make sure it is close to the real distribution. The other is to consider the average waiting time of an $etx$ during a highload epoch, and make sure it does not depend on the owner node. We call the first aspect \emph{Epool fairness} and the second \emph{time fairness}. 
+%not clear
+These first notion gives rise to the dynamic system which is the distribution in the Epool at each term, which directly effects the second notion of time fairness. For simplicity of analysis, we keep all factors of this dynamic system fixed - but one: the distribution of the $EB^r$. Our setting is thus:  
+\begin{enumerate}
+	\item We consider terms during a static situation of a highload epoch, namely that the Epool size is fixed on $\Gamma' b$ for some $\Gamma\leq\Gamma'$. This amounts to saying that the number of issued $etx$s in each term is equal to the number of appended $etx$s, which is $b$.  
+    \item The issued distribution is fixed throughout the epoch, that is $\mathcal{DI}$, as defined above, is fixed.  
+\end{enumerate}
+%end (not clear)
+
+\textbf{Epool fairness.} Fix a node $i$. We denote by $x^r=x^r(i)$ the probability vector of the $etx$ distribution in $EP_i$ at term $r$. It is the vector $x^r=(x^r_1,x^r_2,\dots,x^r_n)$, where $x^r_j$ is the fraction of $etx$s in the Epool which are associated to node $j$. We would have liked to make sure that for all $r$, $x^r$ is close to $\mathcal{DI}$ - which we consider as the real issuance distribution. For brevity we denote by $x^0=(x_1^0,x_2^0,\dots,x_n^0)$ the real distribution $\mathcal{DI}$. 
+
+Translating our assumptions to these notations, we have that the number of $etx$s in the Epool is $\Gamma' b$, the number of node $j$'s $etx$s in the Epool is $x^r_j\cdot \Gamma' b$, and at each term, user $j$ issues $x^0_j\cdot b$ $etx$s which join the Epool. \red{maybe do all necessary notations at the beginning of the section: We denote by $y^r=(y^r_1,y^r_2,\dots,y^r_n)$ the distribution of the $etx$s in $EB^r$.} It is clear that in a faulty term, the real distribution would be \red{define better: violated, by (at most) $\frac{(1-\beta)b}{\Gamma' b}=\frac{1-\beta}{\Gamma'}$}. The questions are: does this violation hold, and for how long. Our result in this context is the following:
+
+\begin{lemma}
+    Suppose $r_0$ is a faulty term followed by $k$ correct terms, and assume that $x^{r_0}=x^0$, namely that the Epool distribution at term $r_0$ is the real issuance distribution. Then $|x_j^0-x^{r_0+k}_j|\leq((1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)x^0_j$. That is, for a correct user $j$, the difference between the 'real' distribution of $j$'s $etx$s and the distribution as seen in the Epool decreases exponentially in the number of terms.
+\end{lemma}
+
+We remark that there are, of course, other scenarios to consider - particularly the following scenarios: 
+\begin{enumerate}
+\item $x^{r_0}\ne x^0$.
+\item During the $k$ terms after $r_0$ there is another Byzantine primary.
+\end{enumerate}
+However, we emphasize that when the initial disruption is greater, the rate of convergence back to the real distribution is higher. This gives intuition regarding the first scenario. For the second scenario we note that the number of terms required for an effective recovery to the real distribution is rather small (around 3 terms, see the examples right after the proof below). For this reason, we do not expect many Byzantine primaries before the distribution recovers. When this does occur, we can still rely on the previous remark, namely that the rate of convergence back to the real distribution is fast enough so as to prevent an accumulative disruption of the distribution $x^r$. These arguments give a (informal) justification for our concentration in the case stated in the lemma.
+
+To get an intuition for the proof, note that in the absence of faulty terms, $y^r=x^r=x^0$ for all $r$. In a faulty term, however, $(1-\beta)$-fraction of $y^r$ may differ from $x^r$, which would result in a difference between $x^r$ and $x^{r+1}$ (hence between $x^{r+1}$ and $x^0$). To be precise, as we permit a freedom of $(1-\beta)$-fraction in the construction of $EB^r$, we get that $y^r=(1-\beta)y^r_f+\beta x^r$, where $y^r_f$ is the probability vector of the distribution among the $(1-\beta)$ $etx$s the Byzantine primary can choose freely. Observe that from node $j$'s perspective, what matters is $|x_j^r-x_j^0|$, so we can focus our analysis on a single coordinate, $1\leq j\leq n$. In the worst case scenario (from $j$'s perspective), $(y_f^r)_j=0$, that is, in its free $(1-\beta)$ fraction of the Eblock, the Byzantine primary does not include any $etx$ of node $j$ (indeed, this is the probable scenario in a faulty term). We thus assume this is the case in every faulty term. Now, immediately after a faulty term the probability vector $x^{r+1}$ is biased against the faulty node, i.e., the representation of $j$ in the real distribution is smaller than it's fraction in $x^{r+1}$. This means that correct nodes would construct Eblocks with a larger amount of the $j$'s $etx$s, than $j$'s $etx$ issuance rate. Thus it should be the case that with each correct term, the vector $x^{r+k}$ would tend to the real distribution $x^0$. The proof simply makes this idea precise. 
+
+\begin{proof} 
+	Fix some correct node $j$. Suppose $x^r=x^0$, and that $r$ is a faulty term. We have 
+    $$x^{r+1}=x^r+\frac{1}{\Gamma' b}(b\cdot x^0-b\cdot y^r)=x^0+\frac{1}{\Gamma' b}(b\cdot x^0-b\cdot(\beta x^0+(1-\beta) y^r_f)$$
+    where $b\cdot x^0$ accounts for the issued $etx$s of this term, and $-b\cdot y^r$ accounts for the appended $etx$s of the term (i.e., for $EB^r$). Considering only the $j-th$ coordinate, and assuming $(y^r_f)_j=0$, we get $x^{r+1}_j=x^0_j+\frac{1}{\Gamma'}\cdot(1-\beta)x^0_j$ and hence $|x^{r+1}_j-x^0_j|=\frac{1-\beta}{\Gamma'}\cdot x^0_j$. 
+    
+    $\frac{1-\beta}{\Gamma'}$ is the 'damage' the faulty caused to node $j$. Now the correct terms start to 'stabilize' the system. As $j$-s fraction in $x^{r+1}$ is now larger than it's fraction in $x^0$, at each term there would be more of $j$s $etx$s appended to the blockchain than $etx$s issued by $j$. In other words, for a correct term $r+k$, $y^{r+k}=x^{r+k}$, so we get in the general case:
+    $$x^{r+k}=x^{r+(k-1)}+\frac{1}{\Gamma' b}(b\cdot x^0-b\cdot x^{r+(k-1)})=(1-\frac{1}{\Gamma'})x^{r+(k-1)}+\frac{1}{\Gamma' }x^0$$
+    This gives an inductive formula for $x^{r+k}$. We can now prove that $x^{r+k}_j=(1+(1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)x^0_j$: the base case was shown above, for $k=0$, in the faulty term. Assume the formula holds for $k-1$, and now by the formula for $x^{r+k}_j$ we get
+    $$x^{r+k}_j=(1-\frac{1}{\Gamma'})x^{r+(k-1)}+\frac{1}{\Gamma' }x^0=(1-\frac{1}{\Gamma'})(1+(1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^{k-1}x^0_j+\frac{1}{\Gamma'}x^0_j$$
+    Rearranging, we get
+    $$x^{r+k}_j=(1-\frac{1}{\Gamma'})x^0_j+((1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)x^0_j+\frac{1}{\Gamma'}x^j_0$$
+    The $\frac{1}{\Gamma'}x^0_j$ factors cancel each other, and we are left with $x^{r+k}_j=(1+(1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)x^0_j$, as claimed.
+\end{proof}
+\red{THERE ARE NUMBERS HERE - CHECK THAT THE BETA IS OK(IDO)}
+For example, if $\Gamma'=10$ and $\beta=\frac{3}{4}$, within 3 terms the maximal distance between Epool distribution and the real distribution is $\frac{1}{50}x^0_j$. For the same parameters with $\Gamma'=20$, the distance within 4 terms is less than $\frac{1}{90}x^0_j$. It is easily seen that for fixed $k$ (say, $k=4$), the bound $(1+(1-\beta)\frac{1}{\Gamma'}(1-\frac{1}{\Gamma'})^k)$ is getting smaller as $\Gamma'$ grows, which is the scenario we have in mind in a highload mindset.
+
+\red{REMARK}
+red{Recall that we consider two attacks a faulty primary can make, namely \textit{hiding $etx$s} and \textit{unfair sampling}. Notice that from the viewpoint of node $j$, it doesn't matter which attack the adversary is performing: in both we are inclined to assume $(y_f^r)_j=0$. The kind of the attack effects only the faulty's coordinate in $y^r$, which we ignor as we don't care about fairness towards faulties.}

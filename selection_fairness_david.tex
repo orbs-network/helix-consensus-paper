@@ -1,0 +1,136 @@
+\subsection{Selection fairness}\label{subsec:selectionFairness}
+%fairness in terms of waiting time.
+
+
+%In high-load epochs Epools contain many pending $etx$s and primaries have the freedom of choosing which $etx$s to include in new Eblocks they propose. The main motivation behind selection fairness is to restrict this freedom and ensure that the selection process does not favor $etx$ונ יממs of a certain group. Precisely, selectל ion fairness strives to reach a state where the average \emph{waiting time} of an $etx$ depends solely on the לsמטמize of the global Epool, and not on its owner node or on any other characteristic.   
+
+%nodes can manipulate waiting time due to liveness constraints in the validation process.
+Under conditions where all nodes follow the $b$-construction, the core aspect of selection fairness is an immediate result---an $etx$ is included in the next Eblock with probability $1/\Gamma$. However, as nodes are assumed to prioritize their own $etx$s and act to shorten their average waiting time, they might choose to follow a different strategy. The inevitable ``room for error'' permitted in the validation process (due to potentially non-identical Epools), prohibits such behavior from being completely eliminated. In this section we analyze the extent to which the validation scheme suggested above can guarantee selection fairness and a fair average waiting time.
+%Specifically, we consider two methods that primaries may adopt in order to include more of their $etx$s in Eblocks and show how these influence the average waiting time of their $etx$s. 
+%Specifically, we consider two methods that primaries may adopt in order to include more of their $etx$s in Eblocks and show how these influence the average waiting time of their $etx$s.  
+
+%Presenting the two Eblock construction strategies
+We consider two distinct methods to manipulate the selection process.
+The first is by \emph{tailoring} $etx$s in order to hash them to low values. %Precisely, once the random seed is revealed, the primary tailors prioritized $etx$s such that they  have low hash values, keeping the maximal hash in the Eblock, $T_p$, low. 
+The second method is through $b'$-constructions, for $b'>b$. We study the dependency between $b'$ and the certainty of an Eblock to pass validation. %While this analysis may be useful to \name nodes in tuning the parameter $b'$, our main goal is to 
+%We deduce analytical, as well as experimental results as to the effect these constructions have on the probability of some $etx$ to get included in $EB_p$.
+
+
+%Intuition for first strategy - tailoring $etx$s
+We start with a high-level analysis of the tailoring approach. While the locking mechanism discussed earlier eliminates the advantage of revealing the random seed prior to the rest of the network, tailoring $etx$s can still be a worthwhile strategy. Issuing many tailored copies of the same transaction and forwarding them to the network would increase the probability of one copy to be processed quickly. In order to avoid such behavior, suitable fee models are needed\footnote{For example, one such fee model can be realized by a system rule that dictates an increased fee for failed transactions. In UtxO-based architectures (like Bitcoin), such an approach would be easier to enforce. In account-based architectures that support rich scripting languages (like Ethereum), circumventing such rules would be considerably impractical.}. 
+
+Alternatively, nodes may keep their tailored $etx$s hidden from the network and include them only when constructing Eblocks. %Note that the probability of a hidden $etx$ to be included in the next Eblock is typically lower than that of a non-tailored $etx$ forwarded to the network. The former probability is $1/n$ (which is the probability of the issuer node to be elected primary), whereas the latter probability is (close to) $1/\Gamma$. A healthy distributed system should not reach a situation where $\Gamma>n$. Additionally, even if a node chooses to hide tailored $etx$s, 
+the \name Eblock validation process prevents over-exploiting this strategy. Specifically, since tailored $etx$s are clearly not in $EP_i$, including many of them reduces $|EB_p\cap EB_i'|$, while in order to pass validation, the size of this intersection must be at least $\beta_{\alpha}(b)$.
+
+%Analysis for second strategy - $b'$-minimal.
+We continue with a formal analysis of the $b'$-construction. According to this strategy, the primary first looks at $EB_p'$ which contains the lowest $b'$ $etx$s in $EP_p$. Of those, she selects the $b$ $etx$s she prefers. Our analysis ignores this choice and is applicable to any subset of $b$ $etx$s from $EB_p'$ (that includes the $b'^{\text{th}}$ $etx$). Typically, when $b'\ge b$ the validation condition becomes $|EB_p\cap EB_i'|\ge \beta(|EB_i'|)$. Both sides of this inequality grow with $b'$, but while the left-hand side grows slowly, and is bounded by $b$, the right-hand side grows faster and is effectively unbounded. Thus, a large $b'$ decreases the probability of $EB_p$ to pass validation. A quantitative analysis is given hereafter.
+
+%From $b'$ to $T_p'$
+We fix some $b'>b$ and consider $EB_p$ constructed via the $b'$-construction. We calculate the probability $q=q(b')$ in which $EB_p$ passes a single validation. Denote this event by $A=A(b')$. 
+
+%$|EB_p\cap EB_i'|$ assumption
+Before continuing, we make a simplifying (average-case) assumption. Clearly, $|EB_p\cap EB_i'|$ is bounded from above by $b$, and we will assume that it is exactly $\alpha b$, as the probability of an $etx \in EP_p$ to be in $EP_i$ is (at least) $\alpha$.
+%Taking $\lambda = 1$, on the other hand, results in an analysis that facilitates the validation process (for the primary) and can be seen as a worst case analysis in terms of selection fairness. 
+Under this assumption, $Pr(A)$ becomes $Pr\left(\alpha b\ge \beta_{\alpha}(b_i)\right)$. Calculating for which $b_i$ this condition holds gives rise to a quadratic inequality, whose solution yields $Pr(A)=Pr(b_i \leq M)$ for $M=\bigg(\frac{\sqrt{10}+\sqrt{10+4\alpha^2 b}}{2\alpha}\bigg)^2$.
+%\footnote{The second root of the quadratic equation is discarded as we are interested only in an upper bound for $|EB_i'|$}$. 
+Clearly, $M$ satisfies $\alpha b=\beta_{\alpha}(M)$ and $M>b$. Recall that $b_i=\max\{b,|EB_i'|\}$, which implies $Pr(b_i\leq M)=Pr(|EB_i'|\leq M)$.
+% a Binomial random variable, with parameters $(\Gamma b,\frac{b'}{\Gamma b})$: there are $\Gamma b$ $etx$s which can be hashed below $T_p$ and be in $EP_i$. By the random nature of $EP_p$, the probability for any $etx$ to hash below $T_p$ is $\frac{b'}{\alpha\Gamma b}$. The probability for an $etx$ to both lie in $EP_i$ and hash below $T_p$ is thus $\alpha\cdot \frac{b'}{\alpha\Gamma b}=\frac{b'}{\Gamma b}$. 
+
+%going to use Chernoff
+We use the Chernoff inequality to bound $Pr(|EB_i'|\leq M)$ from below. For this, we use the expected value of $|EB_i'|$, which can be approximated using a simple symmetry argument (based on the even dissemination of messages in the network), yielding $\mathbb{E}[|EB_i'|]=|EB_p'|=b'$. Our goal now is to find, for any desired probability to pass validation $q$,  the maximal $b'$ for which $Pr(|EB_i'|\leq M)\geq q$. The Chernoff inequality for the complement event yields
+$$Pr(|EB_i'| > M)=Pr\big(|EB_i'| > (1+\delta)b'\big)\leq \exp(-\delta^2b' / 3)$$
+where, $\delta=\frac{M}{b'}-1$. Chernoff requires $\delta \in [0,1]$, which implies $b'\leq M \leq 2b'$ must hold.
+%Requiring the right hand side probability to be at most $1-q$ results in a bound 
+%$$Pr(|EB_i'|\leq M)=1-Pr(|EB_i'| > M) \geq 1-(1-q)=q.$$
+We are thus led to compute the maximal $b'\leq M$ for which $f(b'):=\exp(-\delta^2b' / 3)=1-q$.
+
+Solving this equation, Table~\ref{tab:table2} illustrates maximal $b'=b'(q)$ values (note that for $b'\leq M$, the function $f$ is monotonically increasing) for various passing validation probabilities $q$, and various Eblock sizes $b$, while keeping $\alpha=0.95$ (which yields different $M$ values). Notice that as $q$ increases, the primary has to be more careful and $b'$ decreases. The fact that $b'(q)/b$ is very close to $1$ indicates that the freedom a primary has to act unfairly in constructing $EB_p$ is rather limited.
+
+
+\begin{table}[h!]
+  \begin{center}
+    \caption{For Eblock size $b$ and a desired probability to pass a single validation $q$, we find the maximal $b'(q)$ for which we can guarantee that the $b'(q)$-construction would pass validation with probability at least $q$. The fact that the $b'(q)/b$ values are close to $1$ suggests fairness in $etx$ selection.}
+    \label{tab:table2}
+    \begin{tabular}{c|c|c|c|c} % <-- Alignments: 1st column left, 2nd middle and 3rd right, with vertical lines in between
+      $b$ & $M$ & $q$ & $b'(q)$ & $b'(q)/b$ \\
+      \hline 
+1000  &  1111  &  0.95  &  1016  &  1.0154\\
+1000  &  1111  &  0.75  &  1046  &  1.0450\\
+1000  &  1111  &  0.5  &  1064  &  1.0639\\
+1000  &  1111  &  0.1  &  1093  &  1.0924 \\
+2500  &  2673  &  0.95  &  2523  &  1.0089 \\
+2500  &  2673  &  0.75  &  2570  &  1.0278 \\
+2500  &  2673  &  0.5  &  2600  &  1.0397 \\ 
+2500  &  2673  &  0.1  &  2645  &  1.0576 \\
+5000  &  5241  &  0.95  &  5029  &  1.0056 \\ 
+5000  &  5241  &  0.75  &  5096  &  1.0190 \\
+5000  &  5241  &  0.5  &  5138  &  1.0275 \\
+5000  &  5241  &  0.1  &  5201  &  1.0400 \\
+%Values for \lambda=1:
+% 1000 & 1167 & 0.95 & 1069 & 1.069 \\
+% 1000 & 1167 & 0.90 & 1081 & 1.081 \\
+% 1000 & 1167 & 0.75 & 1100 & 1.100 \\
+% 1000 & 1167 & 0.50 & 1119 & 1.119 \\
+% 2500 & 2808 & 0.95 & 2654 & 1.061 \\
+% 2500 & 2808 & 0.90 & 2673 & 1.068 \\
+% 2500 & 2808 & 0.75 & 2702 & 1.080 \\
+% 2500 & 2808 & 0.50 & 2733 & 1.093 \\
+% 5000 & 5511 & 0.95 & 5293 & 1.058 \\
+% 5000 & 5511 & 0.90 & 5320 & 1.063 \\
+% 5000 & 5511 & 0.75 & 5362 & 1.072 \\
+% 5000 & 5511 & 0.50 & 5405 & 1.080 \\
+    \end{tabular}
+  \end{center}
+\end{table}
+
+% We now turn to calculate $Pr(b_i\leq M)$. For this, we need to understand how $b_i$ is distributed. $EB_i'$ can be decomposed into two disjoint sets, namely 
+% $$EB_i'=(EB_i'\cap EP_p)\cup (EB_i'\cap EP_p^{\mathsf{c}}).$$ 
+% We denote the size of the first set by $Y_1$ and of the second by $Y_2$. Notice that $EB_i'\cap EP_p$ contains exactly all $etx$s which hash below $T_p$ and lie in both $EP_i$ and $EP_p$. Thus, 
+% $$EB_i'\cap EP_p=EB_i'\cap EB_p'=EP_i\cap EB_p'.$$ 
+% Any $etx$ from $EB_p'$ is in $EP_i$ with probability $\alpha$, hence $Y_1\sim Bin(b',\alpha)$. On the other hand, an $etx$ is in $Y_2$ iff three conditions hold: it is not in $EP_p$, it is in $EP_i$ and it hashes to a value below $T_p$. There are $c:=\Gamma b-|EP_p|$ $etx$s satisfying the first condition, and the probability of each of these $etx$s to satisfy both remaining conditions is $\alpha T_p$. Hence, $Y_2\sim Bin(c,\alpha T_p)$. 
+
+% We conclude that $|EB_i'|=Y_1+Y_2$ is the sum of two independent Binomial variables. Recall that $b_i=max\{|EB_i'|,b\}$, and since $M>b$ we get $Pr(b_i\leq M)=Pr(|EB_i'|\leq M)$. To attain this probability is a matter of easy computation:
+
+% \begingroup\makeatletter\def\f@size{8}\check@mathfonts
+% \begin{align*}
+% 	& \sum_{m=0}^M Pr(Y_1+Y_2=m) = \\
+%     & \sum_{m=0}^M \sum_{y_1=0}^m Pr(Y_1=y_1,Y_2=m-y_1) = \\
+%     & \sum_{m=0}^M\sum_{y_1=0}^m Pr\big(Y_1=y_1)\cdot Pr(Y_2=m-y_1\big) =\\
+%     & \sum_{m=0}^M\sum_{y_1=0}^m \bigg[{{b'}\choose{y_1}}\alpha^{y_1}(1-\alpha)^{b'-y_1}\bigg]\bigg[{{c}\choose{m-y_1}}(\alpha T_p)^{m-y_1}(1-\alpha T_p)^{c-(m-y_1)}\bigg]
+% \end{align*} \endgroup
+
+%Give idea on mounts and numbers...
+%TODO: read this
+We clarify the motivation behind the analysis above. From the point of view of a primary that wants to construct an Eblock with a $b'$-construction, a prominent question is what $b'$ to choose given she wants to pass validation with probability $q$. The above analysis bounds $b'$ from below given $b$ and $\alpha$.
+
+To conclude this section, we analyze to what extent a $b'$-construction allows a primary to promote her $etx$s. Given $b'$, a primary would first include all $etx$s (among the first $b'$ ones) she wishes to promote, and then complete the Eblock space randomly (this is a direct result of the indistinguishability of the encrypted transactions). The deviation of this construction from simply taking the minimal $b$ $etx$s depends on the fraction of $etx$s a node chooses to promote (e.g., the fraction of transactions she issued). We denote this fraction by $\xi_p$, and turn to compute the probability of an $etx$ to be included in an Eblock constructed according to the $b'$-construction described above.
+
+\begin{lemma} \label{Fairness_WRT_Pormoted_Lemma}
+Let $etx\in EP_p$ and $b' \ge b$. Suppose $EB_p$ is constructed according to a $b'$-construction with $\xi_p$, the fraction of promoted $etx$s among all pending $etx$s in $EP_p$. The probability that an arbitrary $etx$ is included in $EB_p$ is   
+    \begin{equation*}
+    		Pr(etx\in EB_p) =	
+		    \begin{cases}
+    			  \frac{b'}{|EP_p|}  &\mbox{if }  etx \text{ is promoted} \\
+     			  \frac{b-\xi_p \cdot b'}{|EP_p|\cdot(1-\xi_p)}  &\mbox{otherwise}
+		     \end{cases}
+  	\end{equation*} 
+\end{lemma}
+\begin{proof}
+First, all promoted $etx$s which are among the lowest $b'$ $etx$s are included in $EB_p$. The probability of an $etx$ to admit this condition is $\frac{b'}{|EP_p|}$, which explains the first case. In case the $etx$ is not promoted by the primary, it would be included if and only if both following conditions hold: it is hashed among the lowest $b'$ $etx$s; and it is selected by the primary among the remaining $etx$s. The probability to meet the first condition is again $\frac{b'}{|EP_p|}$, whereas for the second condition we can only give an average case estimation. In average, there are $\xi_p\cdot b'$ promoted $etx$s among the lowest $b'$. Thus there are $b-\xi_p b'$ slots left in $EB_p$. The probability to get selected for these slots is $\frac{b-\xi_p b'}{b'-\xi_p b'}$. Multiplying these probabilities yields the result.
+\end{proof}
+    
+%\red{Let's examine the numbers with a concrete example. Based on Table~\ref{tab:table2}, taking $b'=1.1 b$ seems more than reasonable. Plugging this in the formula from the lemma gives $$Pr(etx\in EB_p|etx \text{ is not promoted})\ge \frac{(1-\xi_p\cdot 1.1)}{(1-\xi_p)}\cdot  \frac{b}{|EP_p|}$$ As a result, even if the fraction of $etx$s the primary wishes to promote is quite large, say a fraction of $\xi_p=0.3$\footnote{A reasonable assumption is that $\xi_p$ is the fraction of $etx$s that node $p$ owns. In a network of several dozen nodes, we do not expect this fraction to exceed $0.1$.}, then  $\frac{(1-0.3\cdot 1.1)}{(1-0.3)} > 0.95$ and so $$Pr(etx\in EB_p|etx \text{ is not promoted}) > 0.95\cdot \frac {b}{|EP_p|}$$ Recall that for the fair $b$-construction, $Pr(etx\in EB_p)=\frac{b}{|EP_p|}$.}
+
+%\red{We conclude that the validation process derived from the correlated sampling scheme can, to a large extent, guarantee fairness in the selection process of $etx$s to Eblocks. In the next section we present experimental results that reassure the theoretical analysis.}
+
+
+    %Average time claim: 
+    %One may view the probability in the claim as $Pr(etx|p)$, i.e., the probability of an $etx$ to get included in $EB_p$ under the condition that the primary is $p$. By the law of total probability, we get $Pr(etx\in EB^r)=\sum_i\frac{1}{rep_i}\cdot Pr(etx|i)$. It is clear that this probability indeed depends on the identity of the owner node, which comes into play both in $\mathcal{GP}^r$, i.e., how many $etx$s a node owns, as well as in $|EP_p|$, which can be viewd as a function of a node's 'connectivity' to the network.
+    
+    %To get a quantitative result that would exemplify by how much the $q$-construction effects the 'fair' waiting time obtained by the $b$-minimal construction, one should make some assumptions regarding $GP$ and $\alpha$. Assume that $|GP|$ is fixed for several consecutive terms (that is, in each term $b$ new $etx$s are issued while $b$ $etx$s are appended to the blockchain), and that $\mathcal{GP}^r$ is also fixed for several consecutive terms (that is, the proportion of $etx$s owned by each nodes stays stable for several terms). 
+    
+    %Denote the average waiting time of an $etx$ by $T_{etx}$. Under the assumptions above, $T_{etx}$ is a geometric random variable with parameter $Pr(etx)$, and expectancy $\mathbb{E}(T_{etx})=\frac{1}{Pr(etx)}$. \comment{The table below illustrates by how much this time deviates from $\frac{1}{\Gamma}$, the expected waiting time for $b$-minimal constructions.}
+    
+ 
+
+

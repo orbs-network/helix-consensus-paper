@@ -1,0 +1,71 @@
+\subsection{Highload Maya}
+We start by proving the following lemma which will be used for the liveness proof.
+\begin{lemma}\label{hypergeolemma}
+With probability at least $1-e^{-21}$, the number of $etx$s in $EB_i$ that do not appear in $EP_p$ is at most $(1-\beta)\cdot b$ for $\beta=\alpha -\sqrt{\frac{10.5}{b}}$.
+\end{lemma}
+\begin{proof}
+Denote by $M$ the size of $EP_p$. From our model assumption, $EP_i$ and $EP_p$ intersect by a fraction of $\alpha$ at least, and so $|EP_i\setminus EP_p|\leq M\cdot (1-\alpha )$. The function $H(RS^{r-1},etx)$ induces a random ordering on the $etx$s in $EP_i$, where the $b$ lowest hashed $etx$s are included in $EB_i$. This is indeed a random ordering since $RS^{r-1}$ is revealed after the lock time of $EP_i$, and thus an adversary can not tamper the induced randomness in any way. It follows that $b$ $etx$s are chosen for $EB_i$ at random from the $M$ $etx$s in $EP_i$, and we wish to bound the probability that more than $(1-\beta)b$ of these $etx$s are from the set $EP_i\setminus EP_p$. For some integer $k$, the probability that $k$ $etx$s from $EP_i\setminus EP_p$ are chosen for $EB_i$ is given by the hypergeometric distribution. A tail bound on the hypergeometric distribution, given by Chvatal in~\cite{tailchvatal} as a special case of Hoeffding's Inequality (see also~\cite{tailskala}), gives us that
+\begin{equation}\label{tail_hypergeo}
+\textbf{Pr}[|EB_i\setminus EP_p|\geq (1-\alpha +t)\cdot b]\leq \left ( \left(\frac{1-\alpha}{1-\alpha+t}\right)^{1-\alpha+t}\cdot \left(\frac{\alpha}{\alpha -t}\right )^{\alpha-t} \right)^{b} 
+\end{equation}
+
+This bound can be relaxed to a more elegant but weaker bound
+\begin{equation}
+\textbf{Pr}[|EB_i\setminus EP_p|\geq (1-\alpha +t)\cdot b]\leq e^{-2t^2\cdot b}
+\end{equation}
+
+Using this bound with $t=\sqrt{\frac{10.5}{b}}$ we get that $|EB_i\setminus EP_p|< (1-\alpha + \sqrt{\frac{10.5}{b}})\cdot b$ with probability at least $1-\textbf{e}^{-21}$. 
+\end{proof}
+We turn to the liveness claim, in which we show that for $\beta=\alpha -\sqrt{\frac{10.5}{b}}$, a correct Eblock is validated with probability greater than $1-\textbf{exp}(-20)$. This amounts to proving the following claim, which is symmetric with respect to $p$ and $i$.
+
+\begin{claim} {}For $p$ and $i$ two correct nodes, node $i$ approves node $p$'s proposed Eblock $EB_p$, i.e., $|EB_p\cap EB_i|\geq \left(\alpha -\sqrt{\frac{10.5}{b}}\right)b$ holds with overwhelming probability.
+\end{claim}
+\begin{proof}
+Recall that the hash function induces a random ordering on the $etx$s in $EP_i\cup EP_p$. Denote by $TH_i$ the $b$ lowest hash value of an $etx$ in $EP_i$. For $etx\in EP_i$ we have that $etx\in EB_i$ if and only if $H(etx,RS^{r-1})\leq TH_i$. Similarly, we denote by $TH_p$ the $b$ lowest hash value of an $etx$ in $EP_p$. We can partition the probability space according to if $TH_p$ is smaller than or greater than $TH_p$, that is,
+\begin{equation}
+\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b ]=\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b \wedge TH_p\leq TH_i]+\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b \wedge TH_p>TH_i]
+\end{equation}
+For $etx\in EB_p$ we have that if $etx\in EP_i$ and $TH_p\leq TH_i$, then $h(etx)\leq TH_p\leq TH_i$ and thus $etx\in EB_i$. It follows that if $TH_p\leq TH_i$ then $EB_p\wedge EB_i=EB_p\wedge EP_i$. Similarly, if $TH_p>TH_i$ then $EB_p\wedge EB_i=EB_i\wedge EP_p$. Therefore,
+\begin{equation}\label{partion}
+\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b ]=\textbf{Pr}[|EB_p\wedge  \mathbf{EP_i}|>\beta \cdot b \wedge TH_p\leq TH_i]+\textbf{Pr}[|  EB_i\wedge \mathbf{EP_p}|>\beta \cdot b \wedge TH_p> TH_i]
+\end{equation}
+Denote by $q:=\textbf{Pr}[TH_p\leq TH_i]$. A priori, the value of $q$ should be close to $0.5$, however we do not want to restrict generality with this assumption which may not always hold \footnote{An extream example for a case that $q\neq o.5$ is when $p$ hears of $etx$s much faster than $i$ and thus $EP_i\subseteq EP_p$. In this case $Th_p\leq Th_i$ with probability $1$.}. Using the conditional probabilities we get that
+\begin{equation}
+\textbf{Pr}[|EB_p\wedge  EP_i|>\beta \cdot b ]=q\cdot \textbf{Pr}[|EB_p\wedge EP_i|>\beta \cdot b |TH_p\leq TH_i]+(1-q)\cdot\textbf{Pr}[|EB_i\wedge EP_p|>\beta \cdot b |TH_p>TH_i]
+\end{equation}
+Instead of showing that each of the two events happens with high probability we will show that each of their complementary events happens with low probability. Switching to the complementary events we have that 
+\begin{equation}\begin{split}\label{lala}
+\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b ]&=q\cdot (1- \textbf{Pr}[|  EB_p\setminus EP_i|>(1-\beta) \cdot b |\; TH_p\leq TH_i])\\&+(1-q)(1-\textbf{Pr}[|EB_i\setminus EP_p|>(1-\beta) \cdot b |\; TH_p>TH_i])
+\end{split}\end{equation}
+We start by bounding the first probability, the second one is also bounded in a similar way. We have that,
+%We can write the probability that the event $|EB_p\setminus EP_i|\geq \beta \cdot b$ occurs as the sum of the probabilities of two complementary events, $TH_i\leq TH_p$ and $TH_i> TH_p$.  
+\begin{equation}\label{additive}
+\textbf{Pr}[|EB_p\setminus EP_i|\geq(1- \beta) \cdot b\wedge TH_p\leq TH_i]\leq \textbf{Pr}[|EB_p\setminus EP_i|\geq (1-\beta) \cdot b]
+\end{equation}
+since the event on the left hand side is contained in the event on the right hand side. Hence, from lemma \ref{tail_hypergeo}
+\begin{equation}\label{bound_and}
+\textbf{Pr}[|EB_p\setminus EP_i|\geq (1-\beta) \cdot b\wedge TH_p\leq TH_i]\leq e^{-21}
+\end{equation}
+It follows that
+\begin{equation}\begin{split}\label{cond_1}
+\textbf{Pr}[|EB_p\setminus EP_i|\geq (1-\beta) \cdot b\wedge TH_p\leq TH_i]&=\textbf{Pr}[TH_p\leq TH_i]\cdot \textbf{Pr}[|EB_p\setminus EP_i|\geq (1-\beta) \cdot b |\; TH_p\leq TH_i] \\
+&=q\cdot \textbf{Pr}[|EB_p\setminus EP_i|\geq (1-\beta) \cdot b|\; TH_p\leq TH_i]
+\end{split}\end{equation}
+Combining equations \ref{bound_and} and \ref{cond_1} we get that 
+\begin{equation}\label{pminusi}\begin{split}
+ \textbf{Pr}[|EB_p\setminus EP_i|\geq(1- \beta) \cdot b|\; TH_p\leq TH_i]&=\frac{1}{q}\cdot \textbf{Pr}[|EB_p\setminus EP_i|\geq \beta \cdot b\wedge TH_p\leq TH_i]\\
+&\leq \frac{1}{q}\cdot e^{-21}
+\end{split}\end{equation}
+Lemma \ref{tail_hypergeo} is symmetric with respect to $p$ and $i$. Thus, we can repeat the above proof substituting $p$ and $i$ and get that
+\begin{equation}\label{iminusp}
+\textbf{Pr}[|EB_i\setminus EP_p|\geq (1-\beta) \cdot b |\;TH_p> TH_i]\leq
+\frac{1}{1-q}\cdot e^{-21}
+\end{equation}
+Plugging in equations \ref{iminusp} and \ref{pminusi} in equation \ref{lala} we get
+\begin{equation}\begin{split}\label{lolo}
+\textbf{Pr}[|EB_p\wedge  EB_i|>\beta \cdot b ]&\geq
+q\cdot (1-\frac{1}{q}\cdot e^{-21})+(1-q)\cdot (1-\frac{1}{1-q}\cdot e^{-21})\\
+&=q-e^{-21}+1-q+e^{-21}=1-2\cdot e^{-21}>1-e^{-20}
+\end{split}\end{equation}
+And thus $p$ and $i$ each approve each other's blocks with overwhelming probability.
+\end{proof}

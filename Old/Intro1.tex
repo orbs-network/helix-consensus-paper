@@ -1,0 +1,36 @@
+%In the introduction:
+%One of two... ordering and validation
+%Connection to Orbs via Justifications and Achievements. 
+%Justifications to: permissioned environment, no incentive structure, separation of ordering and validation and ordering first.
+%Achievements: under the new general setting fairness becomes a major concern, limited control over the ledger rather than the obscure concept of "decentralization" and its many faces.
+
+
+%Justification of the permissioned environment 
+Nakamoto consensus, based on PoW, was the first (and to date the only) successful paradigm to reach consensus over a log of values (blockchain) among an \emph{open} set of independent and anonymous participants. The permissionless nature of Nakamoto consensus and the way it allocates new coins (or: its incentive design) turned the (costly) process of finding PoW blocks into a classic market where potential participants leave and join as they please in order to maximize profits. As entities wishing to maximize their Bitcoin holdings, they have no interest in the actual data they order or validate (theoretically at least). This decouples the entities interested in the (correct) execution of their transactions (end-users or applications run over a platform such as Ethereum) from the entities that actually execute (and thus also validate) the transactions. This has frightening consequences to any entity interested in the validity (or correctness) of the results miners publish (i.e, the blockchain and the current state derived from it), (a related result is sometimes referred to as the verifier's dilemma)\footnote{In Bitcoin today this is solved by altruistic participants that run full nodes and validate the blockchain independently. However, since these entities are not compensated for their efforts, the amount of computation they can run is highly limited, becoming the bottleneck of the whole system).}. 
+
+We offer an alternative paradigm where ordering and validation is done by a closed set of participants that take upon themselves this role not for profits they might gain, but for actual interest in the code that needs to be executed. Just as Waze have an inherent interest in running code for their end-users (in order to increase their valuation by enlarging their user base, etc); or just as Airbnb have a clear motivation to realize transactions for the fees they include. So, we regard "miners" as entities with actual need to process users' transactions and run the code they invoke\footnote{Alternatively, "miners" are entities that run code as a service (for those entities that are interested in running code and are willing to pay for it) under ordinary service-providers contracts and profit margins.}. Put differently we question the open approach of the mining market. This serves as our basic rationale behind the choice to consider a \emph{permissioned environment} in Concord.
+
+%One of two
+Further relating to Nakamoto consensus or to the classical SMR approach, where it is up to the same entities, to both order the transactions and to execute them, Orbs separates these.
+
+
+
+there Concord is to be seen as the first part of a two-piece solution. 
+
+The full incentive structure Concord was designed for will not be discussed in this manuscript as Concord is only one piece in the puzzle Orbs is building. Concord is merely the ordering service. It is not the execution/validation service. This leads us to the second design pattern in Orbs 
+
+We emphasize that participation in Concord is not subject to stake in the system neither - in order to become a miner in Orbs (/Concord), one must supply firm evidence it has a clear incentive to execute "under-consensus" code and is willing to pay for it. 
+
+Concord is the first part of a consensus platform that enables such entities to join forces and run their precious code "under consensus" limiting their control over the state this code ends up in. In these circumstances it is natural to consider a closed group of participants engaged in the consensus process. Under a closed set of participants, classic-cheap-fast consensus approaches make more sense. Concord is a PBFT based ordering service that achieves a single agreed-upon order of transactions.
+When miners have real interest in the transactions they order, the incentives of which transactions to include in blocks become more complicated and techniques which guarantee all sorts of fairness are required. Some of these are included in this work. 
+
+Classic consensus protocols require a closed and well-identified set of participants.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%This market has evolved into a "monster" that computes ????? hashes per second and consumes ????? electricity. Apart from the environmental damage, we stress that the implications of such an open market may lead to uneconomical models with a low level of predictability and exaggerated amount of redundancy that limits the scalability of such systems. 
+
+%The evolution from Bitcoin to Ethereum has lead to distributed system that can executes general computations and reach consensus as to their results.  
+
+%This decouples the semantics of the data that is being ordered or validated from miners' incentives. This has some major drawbacks    

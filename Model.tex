@@ -1,0 +1,61 @@
+In this section we introduce the model assumptions that the \name protocol relies on to achieve safety, liveness and fairness. We assume a strongly synchronous distributed system where participants are connected by a network over which they exchange messages in order to achieve consensus. The participants are presented first, then the network topology and finally the adversarial model. We also mention two communication schemes used in our protocol.
+
+\subsection{Participants}
+In \name there are two types of participants---users and nodes. Both locally generate cryptographic key pairs which serve as unique identifiers and help to ensure message authenticity (as described in Sec.~\ref{Digital_Signatures}).
+
+\textbf{Nodes}.
+The nodes participating in the protocol form a fixed set of ids (public keys) known to all. 
+%The closed membership model is often referred to as a \emph{permissioned} environment. 
+Nodes are run by strong machines with practically non-limited storage and abundant computation power (partially justified by parallelism capabilities).  
+This assumption implies that reasonable local computations are done instantaneously, e.g., signature verification, hash function computation or decryption of encrypted messages. Conversely, we assume nodes cannot break the cryptographic primitives used in the protocol, e.g., forging digital signatures or finding hash collisions. We further assume that each node owns an internal clock, and that all clocks tick at the same speed; we do not, however, require that the clocks be synchronized across nodes.
+
+\textbf{Users}. Users form an open set of public keys and can join or leave the network as they please. They do not actively engage in the consensus process and can be seen as a virtual fragment of the node they are connected to.
+
+\subsection{Network topology}
+There are two types of network connections: \emph{node-node} connections and \emph{user-node} connections. A node-node connection exists between each pair of nodes, such that the nodes are characterized by a clique topology.  
+User-node connections are organized differently, where each user is connected to exactly one node. We assume there are many more users than nodes. 
+
+
+Node-node connections are assumed to be strongly synchronous\footnote{We emphasize that if our network violates the synchrony assumption, i.e., it is asynchronous, our protocol nonetheless satisfies the safety property as shown in Sec.~\ref{section_properties_safety}.}, i.e., messages transmitted over them, are guaranteed to be delivered within a known time period $\delta$. This is a reasonable assumption under our circumstances, where the protocol assures limited-sized messages, and node participation is conditioned.
+%\footnote{One of the criteria of joining the permissioned network is complying with the synchrony requirement.}
+In the design of our protocol, we would like both connection types to consume a limited amount of bandwidth\footnote{While many existing BFT protocols assume to be run over a LAN (local-area network) where bandwidth is not the bottleneck, we consider a WAN (wide-area network) where bandwidth constraints are more strict.}.
+%Both connection types are assumed to be low-bandwidth \red{TODO: need more formal description.}
+%\footnote{A lot of the work in scaling BFT protocols has concentrated in optimizing computation over a LAN (local-area network) where bandwidth is not the bottleneck. Since our network is constructed over a WAN (wide-area network), our protocol's main focus is on reducing bandwidth usage as the number of participants grow. \red{TODO: add ref}}
+
+\subsection{Adversary}
+We distinguish between \emph{correct} nodes, defined as nodes that follow the protocol’s instructions precisely, and \emph{faulty} nodes, which do not. Among the faulty nodes, we further distinguish between \emph{Byzantine} faulty nodes, defined as nodes that act arbitrarily, and \emph{benign} faulty (or sleepy) nodes, which are unresponsive due to a crash or lack of information. We denote the total number of nodes in the network as $n$, the number of Byzantine nodes among them as $f_\text{Byz}$, and the number of sleepy nodes as $f_\text{Slp}$. Thus, the number of faulty nodes is $f=f_\text{Byz}+f_\text{Slp}$. 
+We restrict the adversary to control at most $f$ faulty nodes, where\footnote{We further limit the adversary in the amount of resources she controls, which in our protocol is attributed to reputation. We assume the adversary controls at most $f / n$ of the accumulative reputation of all nodes. This assumption is analogous to the common restriction of Byzantine hash power in PoW chains or stake in PoS chains.} $3f+1 \leq n$.
+%\footnote{As noted before, since our protocol is safe under asynchronous networks, violation of the bound on $f_\text{Slp}$ is not safety-endangering as sleepy nodes may always be attributed to slow message passing}.  
+Note that to achieve safety, it is enough to bound $f_\text{Byz}$ rather than $f=f_\text{Byz}+f_\text{Slp}$. 
+%\red{but do not commit to a specific value or to a specific relation between $n$ and $f$. In a real deployment, the performance of Gruffalo depends (almost) solely on $f$ and not $n$.}
+
+We assume a single powerful \emph{adversary} that determines which nodes are correct and which nodes are faulty. Generally speaking, the protocol is divided into \emph{terms}, where in each term a single block is added to the blockchain. The adversary is \emph{static} in the sense that she must pre-determine which nodes will be faulty during a given term $r$, before the term starts. The adversary is \emph{adaptive} in the sense that in different terms she can choose different faulty nodes. In a specific term, the adversary is restricted to sign only on behalf of the nodes she controls in that term\red{\footnote{One practical way to achieve such a restriction is to utilize ephemeral keys for signing messages. In general, a node creates a pairwise ephemeral key for each term, composed of a secret key and a corresponding public key, which is uniquely associated both to the identity of the node and to some term number. The node publishes in advance (e.g., for the next thousand rounds) a commitment for these exclusive keys (one way of creating such a commitment is by using a Merkle tree and publishing the root). Every term the node signs messages with the term's ephemeral secret key and destroys it when the term ends. Hence, if the adversary takes control over the node in a subsequent term, she cannot sign messages from an earlier term.}}.
+The adversary controls all the faulty nodes and coordinates their behavior. In addition, she delivers messages between the faulty nodes instantaneously. Hence, the adversary may perfectly coordinate attacks she wishes using all the corrupted nodes. 
+
+%justifications to the model: incentives, permissioned environment, etc..
+We maintain that in the context of our environment, assuming network synchronization and a small number of faulty nodes is realistic.
+First, strong synchronization can be justified by constructing a highly connected network and requiring nodes to obtain high speed connections\footnote{Centralized relay services such as Bitcoin's FIBRE network (see: \url{http://bitcoinfibre.org/}) serve as a good example for a fast, synchronous and reliable network.}. 
+%First, strong synchronization can be justified due to the highly connected, permissioned nature of the network among participating nodes\footnote{Centralized relay services such as Bitcoin's FIBRE network (see: \url{http://bitcoinfibre.org/}) serve as a good example for a synchronous and reliable network.}.
+Second, a reputation mechanism maintained in our system incentivizes correct participation and increases nodes reliability (see Sec.~\ref{Reputation} for details). The assumed bound on the number of faulty nodes is implied by the chances of each node to be faulty. We note that \nameNS's performance increases as this bound can be tuned smaller.
+%Second, the permissioned characteristic of node participation along with a reputation mechanism maintained in our system, increases nodes reliability (see Sec.~\ref{Reputation} for details). The assumed bound on the number of faulty nodes is implied by the small chances of each node to be faulty. 
+% \textbf{Regarding the number of faulty nodes.} Obviously, it makes no sense to assume $f\geq \frac{n}{2}$ when considering consensus problems because the consensus should reflect the majority. If no correct majority exists, there is no reason for the consensus protocol to take place. Many BFT agreement protocols are designed to handle at most $\lfloor \frac{n-1}{3} \rfloor$ Byzantine nodes, as was showed is the theoretical bound~\cite{GeneralsByzantine}. Some of the means by which networks are constructed to actually satisfy this bound are: different-version implementations and proactive recovery~\cite{PBFTLong}. In general it is reasonable to associate a corruption probability to each node, indicating its probability to turn faulty. In our model, we are safe to assume low corruption probabilities since the network is permissioned and the nodes are assumed to be reliable. In addition, we assume the nodes participating in the protocol are guided by individual interests. The incentive layer aims to align the rational behavior with the protocol's instructions. A rather naive qualitative explanation is postponed to the Appendix.
+% \textbf{Regarding the synchrony assumption.} Since the network is assumed to be permissioned, rather small and over a reliable network, and since we take a rather large bound, it is safe to assume synchrony. \red{Bitcoin's relay network serves as a good example~\cite{FIBRE}}. 
+
+Fig.~\ref{fig_illustration_network} shows an example of a fully-connected \name network with eight nodes (illustrated by black large circles), serving various numbers of users (appearing as small red circles). 
+
+\subsection{Communication schemes}
+\label{communication_schemes}
+The protocol uses two high level approaches for communication. The first aims to reduce message dissemination time 
+while the second aims to maximize originator anonymity. 
+In both approaches, nodes' bandwidth consumption is limited, i.e., a node is restricted in the number of nodes she sends messages to.
+
+According to the \emph{fast broadcast} scheme, a message is multicast to at most $2 (f+1)$ by each node and is propagated to the whole network within $\zeta=O(\log({n/f}))$ hops. If we denote by $\Delta$ the bound over propagation time in fast broadcast, it is clear that $\Delta=\zeta\cdot\delta$ (under the assumption that $f$ is small enough).
+%Ronen: The cast of the multicast to $2f+1$ nodes is neglected here, but in practice for large $m$ it can be a bottleneck due to finite node bandwidth. 
+When anonymity is of interest, a second approach is used. This approach, which we shall refer to as \emph{anonymous broadcast}, generalizes a simple ring topology and uses different heuristics.
+
+We emphasize that the fast scheme is deterministic rather than using random gossip. This implies a deterministic bound for the time a message may propagate in the network. Moreover, it is resilient to $f$ Byzantine nodes that refuse to follow instructions and act arbitrarily. The fast scheme is described in detail in App.~\ref{appendix_comm}, together with general methods to increase anonymity in broadcast schemes.
+%We shall public a separate paper describing in detail the communication schemes used in Gruffalo.
+% \subsubsection{Coalitions}
+% \subsubsection{Network partitioning}
+% \subsubsection{DDoS}
+% \subsubsection{Spam}

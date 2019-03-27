@@ -1,0 +1,57 @@
+%May include:
+%Bloom filters
+%look-back/pipelining
+%general sharding
+%FaB/hot-stuff
+%fast syncs
+
+
+
+Thus far, in the description of \nameNS, we avoided describing any optimization to the protocol that would have increase it performance but, at the same time, would have make it harder to comprehend. We now go in detail about some of these optimizations to \nameNS. 
+
+%Assumption
+For an initial discussion we start with a simplifying assumption. We assume the nodes in the system possess constant bandwidth capacity and have constant computation power at all times (but might vary between different nodes). Focusing our view on a single node in some arbitrary time in the protocol we may find the particular in one of the following states:
+
+%Problem description
+\red{Maybe just divide to working and waiting}
+\begin{itemize}
+\item \textbf{Working committee member}. The node is in the process of approving the next Eblock. This process involves usage of the node’s computation power for constructing an Eblock or validating it, generating and verifying signatures, etc.; and usage of the node’s bandwidth resources for sending and receiving messages in the PBFT process.
+
+\item \textbf{Working Eblock decryptor}. The node is in the process of decrypting the latest Eblock. This process involves usage of the node’s computation power for validating a Block-proof, generating shares-block and verifying shares, decrypting Eblock, updating node’s reputations, etc.;  and usage of the node’s bandwidth resources for sending and receiving an Eblock with a Block-proof, Shares-Blocks, etc..
+
+\item \textbf{Waiting}. The node is either in a “long waiting” phase, where there is an ongoing consensus process for the next Eblock and the node is not a committee member; or in a “short waiting” phase, where the node was recently in one of the latter states but it waits for responses from the other nodes (one example is when the node is a committee member but the primary of this committee has yet to send his proposed Eblock)\footnote{The terms “long waiting” and “short waiting” refer to the node’s expected time of waiting in the optimistic case. There are many cases where “short waiting” phase time is longer than the “long waiting” phase time.}. We emphasize that in this state no bandwidth nor computation resources are being used by the node.
+\end{itemize}
+
+%Motivation
+Thus, looking at a node’s resource utilization (bandwidth consumption and computation load) over time we expect to see different trends. These trends are characterized by tides i.e., period of time where the node is in a working state and its performance are at peak (high tide), followed by period of time where the node is in a waiting state and resource utilization at nadir (low tide). A trivial conclusion is that the mean performance of any node taking over a large period of time is always lower than its performance capacity. Thus, the protocol does not fully uses the resources in the system and the protocol’s overall performance can be enhanced. The discussion made so far implies a solution in form of parallelism of work i.e., a node should always be in a working state and, at all time, contribute it resources to the benefit of the overall system.
+ 
+%Optimization
+To cope with the discussed inefficiency in \name we introduce a modification to the protocol. For that purpose we define:
+\begin{definition} 
+In \nameNS, a look-back parameter $l$ is the difference between the term of a committee run to the term its members’ composition is first revealed.
+\end{definition}
+
+In the up-till-now described protocol, the look-back parameter is set to $l=1$ since the committee’s composition of term $r$ is calculated, and thus revealed, in term $r-1$ (by the random seed in the Decrypted-block of term $r-1$).
+Prior to describing the changes that optimize the protocol, we observe how performance of a node would be affected when $l>1$. 
+
+\textit{Eblocks construction is not optimized}. We first note that regardless of the value of the look-back parameter, the sequential structure of the blockchain is maintained. Hence, Eblocks are still approved and committed in series, and while the composition of each committee is known far in advance, committees only run one after another. 
+
+\textit{Optimization come in form of parallelism}. Knowing the composition of a committee far in advance allows the protocol to separate the process of decrypting an Eblock from the process of committing it. Thus, parallelism is performed between the run of committees to the decryption of committed Eblocks. However, these processes are not completely separated as the calculation of the composition of a committee entails the revealing of the random seed in the corresponding decrypted Eblock. This dependency is expressed within the look-back parameter, where at most $l-1$ Eblocks’ decryptions can be performed in parallel.
+
+%Modifications to the protocol
+We now dive into the changes required from the protocol by incrementing the look-back parameter.
+
+\begin{itemize}
+\item \textbf{Incrementing genesis blocks}. To initiate the protocol a genesis block with an initial random seed is required in order to decide the first committee. The look-back parameter determines the number of committees that are known in advance and therefore it determines the number of genesis blocks initially needed. Similarly to generating a single genesis block, each generated genesis block contains a random seed. Together, these random seeds determine the subsequent $l$ committees’ composition.
+
+\item \textbf{Separating Eblocks from Decrypted-blocks}. As discussed above, the processes of decrypting an Eblock and approving an Eblock ought to be separated. Thus, for term $r$’s Eblock, $EB^r$, we slightly modify the metadata in the header - instead of a reference to the hash of the previous Decrypted-block, $H(DB^{r-1})$, we reference to the hash of the $l$ previous Decrypted-block, $H(DB^{r-l})$.
+\end{itemize}
+
+
+\noindent We emphasize that these changes merely serve as an extension to the protocol, where setting $l=1$ results the same protocol before changes were made.
+
+%How to determine the LBP? How to change the LBP?
+The value of the look-back parameter that maximizes the system’s performance is determined by the number of nodes in the system ($n$), the committee size ($m$), and by the bandwidth capacity and computation power that nodes in the system possess. As nodes may join or leave the system, or their available resources may change over time, a mechanism for altering the look-back parameter is needed.
+Suppose $l=1$ and an increment by one in the look-back parameter is scheduled to occur in some term $r$. In term $r$, each node transmits two different encrypted-Secrets to include in the proposed Eblock. Once the Eblock is decrypted two Merkle trees are built from the node’s secrets, and from each tree’s root a random seed is generated. From these random seeds each node can calculate the committees’ compositions of terms $r+1$ and $r+2$. Later on, both Eblocks, $EB^{r+1}$ and $EB^{r+2}$, will have reference to the hash of term $r$’s Decrypted-block.
+Now, consider the opposite case, where $l=2$ and a reduction by one in the look-back parameter is scheduled to occur in some term $r$. The committee composition in that term is calculated by the random seed generated from the decrypted-block of term $r-1$ (hence, the random seed of term $r-2$ is skipped).
+Details about further cases of different look-back parameters or modifications in the look-back parameter that are greater than one can be easily filled from the two former discussed cases.

@@ -1,0 +1,177 @@
+\subsection{Selection Fairness}\label{subsec:selectionFairness}
+%fairness in terms of waiting time.
+In highload epochs, $etx$s have to wait some time after issuance before getting committed. Our goal in introducing the correlated sampling approach as a method to Eblock construction is to ensure fairness in terms of \textit{waiting time}, namely that the average waiting time of an $etx$ depends solely on the size of $GEP$, and not on this $etx$'s owner node or on any other parameter. 
+
+In case all nodes follow the protocol, this property is an immediate result of the random nature of the selection process. However, as nodes wish to better service their own users by shortening their waiting time, in highload epochs they may deviate from the protocol's instructions. Instead of including the $b$ lowest hashed $etx$s, nodes may try to construct Eblocks that better represent themselves. We refer to an $etx$ as \textit{illegal} if it is included in an Eblock although it was not hashed among the lowest $b$ $etx$s of the primary's Epool.
+
+%nodes can manipulate waiting time due to liveness constraints in the validation process.
+Our validation process is designed to defend against illegal $etx$s, and the big question is how effective it is. Namely, we are interested in how many illegal $etx$s a primary may include in an Eblock and still pass the validation process. We know the validation conditions are not tight - we had to relax the bounds we require in order to ensure correct Eblocks are validated w.o.p.. Nodes may try to use this relaxation to include as many illegal $etx$s as possible, even at a cost of having their Eblocks rejected every once in a while. 
+
+%two attacks that reduce the waiting time of preferred $etx$s
+\red{We refer to such a behavior as an attack on fairness, and consider two such attacks:} 
+\begin{enumerate}
+	\item \textbf{Biased sampling}: Including $etx$s regardless of their hash value. 
+%Note that each node can recognize only its own $etx$s.
+	\item \textbf{Tailored $etx$s}: Changing the hash values of $etx$s by perturbing them a bit \textit{after} revealing $RS^{r-1}$. This way they can set these $etx$s to have low hash values. 
+\end{enumerate}
+
+A node may choose to perform any of these \red{attacks} separately, or combine them, performing them on different fractions of the Eblock.
+
+%Designing an attack that passes validation with probability $q$.
+In this section we take the approach of playing devil's advocate, and analyze an Eblock construction method which \red{maximizes} the number of illegal $etx$s while retaining a chance of this Eblock getting committed. It is clear that the more illegal $etx$s are included in the Eblock, the less probable it becomes for the Eblock to get committed. Our analysis takes into account the extent to which a node is willing to risk Eblock rejection. For a given probability $q$, we suggest an Eblock construction that allows an attacker to \red{maximize} the illegal $etx$s it contains while passing a single validation with probability $q$. 
+
+Let $x_i$ be the relative part of $etx$s owned by node $i$ among all $etx$s in GEP, i.e., if node $i$ ownes $12\%$ of the $etx$s in $GEP$, then $x_i=0.12$. Our main result points to the fact that including illegal $etx$s shortens the average waiting time of some nodes, depending on $x_i$. It states the following: 
+%main result
+\begin{claim} {Average waiting time}
+	If all nodes use the suggested illegal construction with risk probability $q$, the average waiting time of an $etx$ is ************** (probably would depend on the relative part of a node in the GEP, or on whether the node is Byzantine if we consider this attack Byzantine).
+\end{claim}
+
+\red{As seen in the statement, our protocol cannot guarantee complete fairness in terms of waiting time: this time does not depend solely on $|GEP|$, but also on $\{x_i\}_{i=1}^n$. Still, the result shows that for any given $\{x_i\}_{i=1}^n$, the deviation from the waiting time attained by 'legal' Eblock construction is rather small. \textbf{(compare with other blockchain protocols?)}}
+
+%From attack to common behavior
+A major consequence of this result is that we cannot refer to illegal constructions as Byzantine behavior anymore. Nodes will do everything to promote their own interests, and indeed, so long as illegal constructions pay off (as the claim clearly shows), we must assume all nodes use them. For this reason, we chose to formulate our main result in a setting where \textit{all nodes} use illegal construction, rather than the usual $f$ Byzantine nodes we allow to deviate from the protocol. 
+
+% Put as motivation in Eblock validation part (move) 
+% %I MOVED THIS PART (IDO)
+% \red{We start by explaining how the validation conditions impose restrictions on the aforementioned attacks. We start with the honest case. By proposing $EB_p$, the primary is stating that the set $EB_p$ is the set of all $etx$s which lie in $EP_p$ and hash below $TH_p$. From the perspective of any other correct node $i$, this statement is verifiable - a node $i$ should expect $EP_p$ to contain at least an $\alpha$-fraction of $EB_i'$. If $EB_p$ was indeed constructed according to the correlated sampling scheme, then $EB_p\cap EB_i'=EP_p\cap EB_i'$, and so, on average $|EB_p\cap EB_i'|\sim \alpha b_i$ (recall $b_i:=|EB_i'|$).} 
+
+%Intuition as to why a biased sampling attack reduces the chances to get an Eblock committed.
+In a biased sampling attack low hashed $etx$s in $EP_p$ are replaced by illegal ones with higher hash values, resulting in higher $TH_p$. Recall that when $TH_p\ge TH_i$, the validation condition is $|EB_p\cap EB_i'|\ge \gamma(b_i)b_i$. Both sides of this inequality grow with $TH_p$, but while the left hand side grows slowly, and is moreover bounded by $b$, the right hand grows much faster and is effectively unbounded. Thus, large $TH_p$ decreases the probability of $EB_p$ passing validation. A quantitative analysis is given thereafter. 
+
+%Intuition as to why a tailoring $etx$s attack reduces the chances to get an Eblock committed.
+In a tailoring attack, the primary includes illegal $etx$s while keeping a low $TH_p$. The more tailored $etx$s the primary includes in $EB_p$, the smaller $|EB_p\cap EB_i'|$ becomes. However, recall that in any case, no matter how low $TH_p$ is, $\gamma(b_i)b_i\ge \gamma(b)b$. Consequently, the more tailored $etx$s are included in the proposed Eblock, the less probable it becomes to get it committed. 
+
+%What parameters can the primary play with
+We denote by $T_p$ the \textit{effective threshold}, by which we mean the highest hash value in $EB_p$, as opposed to the \textit{threshold} $TH_p$ which is the value of the $b^{\text{th}}$ $etx$ in $EP_p$. In a legally constructed Eblock, $T_p=TH_p$, but a block which includes illegal $etx$s could have $T_p>TH_p$ in case of biased sampling, or $T_p<TH_p$ in case of a tailoring \red{attack}. 
+
+All in all, in constructing an Eblock, the primary has control over three parameters: determining $T_p$, deciding which $etx$s below $T_p$ to include, and how many tailored $etx$s to include. In what follows we explain why the critical decision is determining $T_p$. In light of this conclusion, we analyze a specific Eblock construction strategy: for any given $T_p$, take $EB_p$ to be \textit{any} set of $b$ $etx$s which hash below $T_p$. For any $T_p$, we calculate with what probability such an Eblock passes a single validation. As a matter of fact, this analysis has begun in the previous section, where we proved that setting $T_p$ according to the protocol's instruction, namely, having $T_p$ as the $b^{\text{th}}$ hash valued $etx$ in the primary's Epool leads to passing validation w.o.p.. 
+
+%Redefining the model from the liveness section.
+We stick to the same model as the one used in the liveness section, only from now on we assume any $etx\in GEP$ is in $EP_i$ with probability exactly $\alpha$ (and not \textit{at least} $\alpha$ as before). We remind that the size of $GEP$ is denoted by $\Gamma\cdot b$, and we denote $EB_i':=\{etx\in EP_i\vert H(etx)\leq T_p\}$, and $b_i=|EB_i'|$.
+
+Recall that the exact values of $\alpha$ and $|GEP|$ are not known to nodes in real time. While for the liveness section we had to assume some lower bound on $\alpha$ which holds w.o.p., in the context of fairness it is not so critical if a node miscalculates $\alpha$. We expect this to yield much better estimates most of the time, at the cost of having an Eblock rejected every once in a while. We begin with an analysis of an Eblock construction which does not include any tailored $etx$s. Observe that in this setting its usually the case that $TH_i\leq T_p$. 
+
+%Analysis regarding the 3 parameters from above
+\textbf{Bounding $T_p$}.
+%In this part we calculate, for any probability $q$, exactly how large $T_p$ can be such that $EB_p$ still passes validation with probability at least $q$. 
+We fix some $T_p$, and consider an arbitrary Eblock $EB_p$ in which all $etx$s hash below $T_p$. Our goal is to calculate the probability in which $EB_p$ passes validation. Denote this event by $A=A(T_p)$. 
+
+% An $etx$ from $GEP$ is in $EB_i'$ iff it is in $EP_i$ \textbf{and} its hash value is lower than $T_p$. These conditions are independent, and we can thus treat $b_i$ as a Binomial random variable with parameters $(\Gamma b,\alpha\cdot T_p)$ (recall that the range of $H$ is $[0,1]$).
+
+$|EB_p\cap EB_i'|$ is bounded from above by $b$. For simplicity of analysis we assume from now on that this size is exactly $b$. We note that by assuming this we make things easier for the primary, but as (\red{CLAIM ***} shows, the case where $|EB_p\cap EB_i'|$ is very close to $b$ is highly probable. Under this assumption, $Pr(A)=Pr\left(b\ge \gamma(b_i)b_i\right)$. Calculating for which $b_i$ the condition $b\ge \gamma(b_i)b_i$ holds yields a quadratic inequality. Solving this inequality, we get that it holds for all $b_i\leq \frac{\sqrt{10}+\sqrt{10+4\alpha b}}{2\alpha}=:M$, and we conclude $Pr(A)=Pr(b_i\leq M)$. 
+
+We now turn to calculate $Pr(b_i\leq M)$. $EB_i'$ can be decomposed into two disjoint sets, namely 
+$$EB_i'=(EB_i'\cap EP_p)\cup (EB_i'\cap EP_p^\complement).$$ We denote the first set by $Y_1$ and the second by $Y_2$. Notice that $EB_i\cap EP_p$ contains exactly all $etx$s which hash below $T_p$ and lie in both $EP_i$ and $EP_p$. Thus  
+$$EB_i'\cap EP_p=EB_i'\cap EB_p'=EP_i\cap EB_p'.$$ Since $EB_p'$ is known to the primary, so is its size $n_1:=|EB_p'|$. Furthermore, any $etx$ from $EB_p'$ is in $EP_i$ with probability $\alpha$, hence $|Y_1|\sim Bin(n_1,\alpha)$. On the other hand, an  $etx$ is in $Y_2$ iff three conditions hold: it is not in $EP_p$, it is in $EP_i$ and $H(etx)\leq T_p$. There are $n_2:=\Gamma b-|EP_p|$ $etx$ satisfying the first condition, and the probability of each of these $etx$s to satisfy both remaining conditions is $\alpha T_p$. Hence, $|Y_2|\sim (n_2,\alpha T_p)$. 
+
+We conclude that $b_i=|Y_1|+|Y_2|$ is the sum of two independent Binomial variables. These variables do not have the same parameters, but still it is a matter of easy computation to achieve the probability for which $b_i\leq M$:
+
+\begingroup\makeatletter\def\f@size{8}\check@mathfonts
+\begin{align*}
+	& \sum_{y_1=0}^M Pr\big(|Y_1| = y_1,|Y_2|=M-y_1\big) = \\
+    & \sum_{y_1=0}^M Pr\big(|Y_1|=y_1)\cdot Pr(|Y_2|=M-y_1\big) =\\
+    & \sum_{y_1=0}^M \bigg[{{n_1}\choose{y_1}}\alpha^{y_1}(1-\alpha)^{n_1-y_1}\bigg]\bigg[{{n_2}\choose{M-y_1}}(\alpha T_p)^{y_2}(1-\alpha T_p)^{n_2-y_2}\bigg]
+\end{align*} \endgroup
+
+Given (estimations of) $\alpha$ and $\Gamma b$, the primary can compute $q=q(T_p)=Pr\left(A\left(T_p\right)\right)$ for any $T_p$, and then determine how high to set $T_p$ according to the desired success probability $q$\footnote{We remind that $q$ will be the probability of passing a single validation. Without getting into detail, we call the reader's attention to the fact that for two different nodes $i$ and $j$, the event of passing the validation of node $i$ is correlated with passing validation of node $j$.}. This can be done since $q(T_p)$ is a monotonically increasing (and continuous) function and thus has an inverse function $T_p(q)$. This invers might not have an explicit formula, but can be easily well approximated for specific values of $q$. We attain a correspondence $q\leftrightarrow T_p$, which we denote $q(T_p)$ and $T_p(q)$.
+
+%translating threshold to illegal $etx$ 
+To conclude this part, recall that what we are really interested in is not how high the threshold can be, but rather how many illegal $etx$s we can expect to see in an Eblock with probability $q$ of passing a single validation. More precisely, we care about how these illegal $etx$s affect the distribution of $etx$s in the Eblock with respect to their owner nodes. Let $X_i$ denote the number of $etx$s owned by node $i$ in the Eblock. We attain the following observation:
+\begin{claim}
+	Let $T\in (0,1)$ be some threshold. In an Eblock with threshold $T$ constructed as described above, containing no tailored $etx$s, $\mathbb{E}(X_p)=(x_p\cdot\Gamma b)\cdot T$, and $\mathbb{E}(X_i)=x_i\big(b-(x_p\cdot\Gamma b)\cdot T\big)$.
+\end{claim}
+\begin{proof}
+	By our suggested illegal construction construction above, the primary includes all $etx$s it owns which hash below $T$. By definition of $x_i$, the number of $etx$s in $GEP$ owned by node $i$ is $x_i\cdot \Gamma b$, and since an $etx$ which was issued by node $p$ is guaranteed to be in $EP_p$, the number of $etx$s in $EP_p$ owned by node $p$ is exactly $x_p\cdot\Gamma b$. Each of them has probability $T$ to be hashed below $T$, hence $X_p\sim Bin(x_p\cdot\Gamma b, T)$ and the expected value is $\mathbb{E}(X_p)=(x_p\cdot\Gamma b)\cdot T$. The remaining $etx$s in the Eblock are selected randomly from all other $etx$s which hash below $T$. The primary selects $b-(x_p\cdot\Gamma b)\cdot T$ such $etx$s, and for each $i$, the expected number of such $etx$s owned by $i$ is $x_i\big(b-(x_p\cdot\Gamma b)\cdot T\big)$.
+\end{proof}
+
+
+\red{To get an idea of the actual number or ratio of illegal $etx$s in an Eblock, the following table illustrates these values for various practical settings.}
+
+
+%In light of the above, one should ask why should the primary bother with a biased sampling attack and risk high $T_p$ when it can simply tailor an $etx$\footnote{\red{rates of computation power and how fast one can tailor an $etx$, maybe explain why it's not so easy since the $etx$s are issued by users..}}. Our answer to this question is simple: the fee mechanism which would be implemented in our protocol would make each node pay for any $etx$ it issues. If a node wish to tailor an $etx$ which was already issued and dissipated to the network, this node will have to pay twice for essentially the same $etx$. We assume from now on that this payment \red{COMPLETE - we have to decide how we treat this}.
+
+% By the law of total probability, 
+% $$Pr(A)=\sum_{k=0}^{\Gamma b}Pr\Bigg(A \bigg||EP_i|=l\Bigg)\cdot \Bigg({{\Gamma b}\choose {l}}\alpha^l(1-\alpha)^{\Gamma b-l}\Bigg).$$ 
+
+
+
+% We consider $b_i=|EB_i'|$ as a random variable. An $etx\in GEP$ is in $EB_i'$ iff it is in $EP_i$ \textbf{and} it is hashed below $T_p$. Since these conditions are independent, we conclude $|EP_i'|\sim Bin(\Gamma b,\alpha\cdot T_p)$.
+% By the law of total probability we thus have 
+% $$Pr(A)=\sum_{k=0}^{\Gamma b}Pr\Bigg(A \bigg||EP_i|=l\Bigg)\cdot \Bigg({{\Gamma b}\choose {l}}\alpha^l(1-\alpha)^{\Gamma b-l}\Bigg).$$ 
+
+% Any $etx$ from $EP_i$ is hashed below $T_p$ with probability $T_p$ (recall the range of $H$ is $[0,1]$). We thus have, in the case $|EP_i|=l$, 
+
+% $$Pr\Bigg(|EB_i'|=k\bigg||EP_i|=l\Bigg)={l\choose k}T_p^{k}\cdot \big(1-T_p\big)^{l-k},$$
+% and by the law of total probability,
+% 			\begingroup\makeatletter\def\f@size{8}\check@mathfonts
+% $$Pr(|EB_i'|=k)=\sum_{l=0}^{\Gamma b}\bigg[{l\choose k}T_p^{k}\cdot (1-T_p)^{l-k}\bigg]\cdot \bigg[{{\Gamma b}\choose {l}}\alpha^l(1-\alpha)^{\Gamma b-l}\bigg].$$
+% \endgroup 
+
+
+% $$Pr(A)=\sum_{k=0}^{\Gamma b}Pr\Bigg(A \bigg||EB_i'|=k\Bigg)\cdot Pr\Bigg(|EB_i'|=k\Bigg),$$ 
+% and finally, $$Pr\Bigg(A\bigg| |EB_i'|=k\Bigg)=Pr\Bigg(|EB_p\cap EP_i|\ge \gamma\left(k\right)\cdot k\Bigg).$$ 
+
+% We now turn to compute the right hand side of the above equation. Notice that given $|EP_i|=l$, it holds that for a set $E\subseteq EP_p\subseteq GEP$ of size $b$, $|E\cap EP_i|\sim Bin(\frac{l}{\Gamma b},b)$. Since by the definitions $EB_p\cap EB_i'=EB_p\cap EP_i$, we have $Z:=|EB_p\cap EB_i'|\sim Bin\left(\frac{l}{\Gamma b},b\right)$. And so, 
+% $$Pr\Bigg(A\bigg| |EB_i'|=k\Bigg)=Pr\Bigg(Z>\gamma(k)\cdot k\Bigg).$$
+
+% Using Chernoff bound, we can bound this expression:
+% \begin{lemma}
+% 	For any $k$, 
+%     $$Pr\Bigg(A\bigg| |EB_i|= k\Bigg)>1-exp\Bigg(-\frac{\delta(k)^2\cdot l}{2\Gamma}\Bigg)$$ for $\delta(k)=1-\frac{\Gamma \cdot \gamma(k)\cdot k}{l}$. 
+% \end{lemma}
+% \begin{proof}
+% 	Recall that by Chernoff, 
+%     $$Pr\Bigg(Z<(1-\delta)\cdot \mathbb{E}(Z)\Bigg)<exp\Bigg(-\frac{\delta^2\mathbb{E}(Z)}{2}\Bigg).$$ Requiring $Z<\gamma(k)\cdot k$ results in $\delta (k)=1-\frac{\Gamma\cdot \gamma(k)\cdot k}{l}$.
+% \end{proof}
+
+% Thus for any choice of $EB_p$ Since    
+% Any selection of $b$ $etx$s for $EB_p$ Thinking of $EB_p$ as a random set of $etx$s from $GEP$, $|EB_p\cap EP_i|$ is simply the number of these $etx$s which are in $EP_i$. Therefore, if we define for each $etx\in EB_p$ the random variable $Z_{etx}$ such that  
+% \begin{equation}
+%     		Z_{etx} =	
+% 		    \begin{cases}
+%     			  1  &\mbox{if }  etx\in EP_i \\
+%      			  0  &\mbox{otherwise}
+% 		     \end{cases},
+%   \end{equation} 
+% and $Z=\sum_{etx\in EB_p} Z_{etx}$. $Z_{etx}$ are all i.i.d. Bernoulli variables with success probability $\alpha$. Notice that here we implicitly use the assumption that from the primary's point of view, all $etx$s in $EP_p$ have the same probability of being in other nodes' Epools.\footnote{As stated, this assumption is not accurate in real scenarios. We know that for at least some $etx$s the primary should have a pretty good idea about whether or not they lie in other Epools. For example, an $etx$ which the primary just issued this moment will probably not be in other Epools, whereas $etx$s the primary received a while back will. We can assume the parameter $\alpha$, which will anyway be computed by the primary itself in real time,  takes this into account.}  This assumption amounts to saying that $W$ and $Z$ are independent variables, thus 
+
+
+
+Adding all these up, we get a complete formula for $Pr(A)$ given a threshold $T_p$:
+\begin{corollary}
+	Let $T_p\in [0,1]$ be the threshold of some Eblock $EB_p$, and $A=A_{T_p}$ the event that $EB_p$ passes the validation condition. Then 
+    $$Pr(A)=\sum_{l,k} Pr\Bigg(A\bigg|l,k\Bigg)\cdot Pr\Bigg(l,k\Bigg)\ge \sum_{l,k}\Bigg(A\bigg|l,k\Bigg)Pr\Bigg(k\vert l\Bigg)Pr\Bigg(l\Bigg)\ge \sum_{l,k}\Bigg(1-exp\bigg(-\frac{\delta(k)^2\cdot l}{2\Gamma}\bigg)\Bigg)\cdot\Bigg({l\choose k}T_p^{k}\cdot \big(1-T_p\big)^{l-k}\Bigg)\cdot \Bigg({}{\Gamma b}\choose{l}\alpha^l\cdot \big(1-\alpha\big)^{\Gamma b-l}\Bigg)$$
+\end{corollary}
+
+% The formula in the corollary allows the primary to set $TH_p$ according to the probability it wishes $EB_p$ to pass the validation of some node $i$. Recall that in order to get an Eblock committed, at least $2f+1$ nodes should validate it. One should keep in mind that although passing validation with one node does not guarantee passing the validation with any other node, we assume that in the setting of our network, these events would be very much correlated. 
+
+% %
+% %Notice that by definitions, $EB_p\cap EB_i'=EB_p\cap EP_i$. Hence given some probability $q_1$, we can give a lower bound bound the size of the set $EB_p\cap EB_i'$ by using the Chernoff bound (quite similarly to the way we used Hoeffding's inequality in the liveness section): 
+% %\begin{claim} {bound on $|EB_p\cap EB_i'|$}
+% %	With probability greater than $q_1$, $|EB_p\cap EB_i'|>\alpha b-\sqrt{-\log(q_1^2)\cdot \alpha b}$.
+% %\end{claim}
+% %\begin{proof}
+% %	Immediate using Chernoff bound.
+% %\end{proof}
+
+% As $|EB_p|=b$, the left hand side is bounded below by $b$. The larger $TH_p$ is, the larger $b_i$ will be, but then there is also 
+
+
+\textbf{Which $etx$s to include} Easy analysis for both tailored and non tailored $etx$s.
+
+
+%\red{Before we continue, we wish to shed light on a significant aspect of tailoring $etx$s. (EXPLAIN ABOUT DOUBLE PAY, AND SHOW THAT IF YOU DON'T DOUBLE PAY, IT IS NOT WORTH WHILE})
+%double pay for double issuance
+\textbf{Double payment for double issuance}. Instead of biased sampling, a primary that wishes to get some of its $etx$s committed quickly while risking getting its Eblock rejected, can tweak these $etx$s in order to have them hash to a low value. This would potentially lead to a block that contains many illegal $etx$s while keeping the threshold low. There are a few problems with tailoring $etx$s - first, tweaking $etx$s takes time and the primary might lose its turn trying before completing the task. Second, the interesting $etx$s are encrypted by the users and thus even the owner node cannot tweak them. Ignoring all these, any fee-per-transaction mechanism would significantly reduce the profitability of such behavior, even if successful, as it would imply that the same transaction is included in the blockchain twice (under two slightly different forms) and thus its cost is doubled.
+
+A node that has $etx$s it needs confirmed right away and is selected primary would be able to tailor them. However, Helix's Eblock validation process in high-load epochs prevents over exploiting this possibility. Specifically, this is where the second condition of~\ref{} comes into play. If $T_p$ is smaller than $Th_i$ (as would probably be the case when the primary tweaks many $etx$s) then we take $EB_i'=EB_i$, leading to $\gamma(b_i)b_i=\gamma(b)b$ being big relative to $EB_i'\cap EB_p'$. The exact analysis is much simpler than the one done in the case of biased sampling and leaves $(1-\beta)$-fraction of the Eblock to play with in order to still have any probability to pass.      
+
+
+
+\textbf{Conclusion: best strategy for nodes.}  \red{Maybe include an analysis which takes into account the risk factor of Eblocks being rejected, in which case they lose this terms chance of including extra illegal $etx$. This is not the exactly the same thing we did with $q$ above - but rather an analysis which helps nodes choose $q$ properly. }
+
+
+We can now prove our claim regarding the average waiting time. Notice that as $etx$s are encrypted, we cannot guarantee anything specific regarding a single $etx$ - we can only say to what extent it is probable that this $etx$'s owner node is represented in Eblocks. This results in an expected waiting time for any of this node's $etx$s. 
+\begin{proof}
+	Proof of average time claim.
+\end{proof} 

@@ -1,0 +1,243 @@
+
+%\documentclass[a4paper]{article}
+\documentclass[10pt, conference, letterpaper]{IEEEtran}
+\usepackage{ifthen}
+\def\Context{}
+
+
+%For conference version put the next line in comments
+\def\Context{WITHCOMMENTS}
+\ifthenelse{\equal{\Context}{WITHCOMMENTS}}{
+  % using Technical Report
+    \newcommand{\comment}[1]{\textcolor{red}{#1}}
+}
+{
+    \newcommand{\comment}[1]{}
+}
+
+% \ifthenelse{\equal{\Context}{FULLPAPER}}{
+%   % using Technical Report
+%     \newcommand{\TR}[1]{{#1}}
+%     \newcommand{\Conf}[1]{}
+%     \newcommand{\refAppendix}[1]{Appendix \ref{#1}}
+% }
+% {
+%     \newcommand{\TR}[1]{}
+%     \newcommand{\Conf}[1]{{#1}}
+%     \newcommand{\refAppendix}[1]{Appendix of \cite{TR}}
+% }
+\newcommand{\ten}{\textrm{\tiny{$\cdot10$}}}
+
+\newcommand{\svdots}[1]{\vspace{-4ex} \[ \hspace{0mm}  \raisebox{2pt}{\scalebox{.65}{\vdots}} \hspace{#1mm} \] \vspace{-5ex}}
+
+% Title formatting
+\newcommand{\subparagraph}{}
+\usepackage{titlesec}
+\titleformat{\subsubsection}[block]{\bfseries}{\thesubsubsection}{.2em}{}
+\titlespacing{\subsubsection}{0pc}{*2.5}{*2}[1pc]
+\titlespacing{\subsection}{0pc}{*3}{*2}[1pc]
+\titlespacing{\section}{0pc}{*3}{*2}[1pc]
+
+%% Language and font encodings
+%\documentclass[a4paper,twocolumn]{article}
+\usepackage[english]{babel}
+%Maya Commented:3
+%\usepackage[utf8x]{inputenc}
+%\usepackage[T1]{fontenc}
+\usepackage{tikz}
+%\usepackage{verbatim}
+%\usepackage[active,tightpage]{preview}
+\usetikzlibrary{arrows,patterns}
+\usepackage{mathtools}
+
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\brown}[1]{\textcolor{brown}{#1}}
+\newcommand{\Distances}[1]{}
+
+%% Sets page size and margins
+%Maya comented- %
+%\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{algorithm, caption}
+\usepackage[noend]{algpseudocode}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\algrenewcommand\alglinenumber[1]{\scriptsize #1:} %Determines the size of line-numbers in pseudocodes
+\usepackage{enumerate}
+\usepackage{mathrsfs}
+\usepackage{multirow}
+\usepackage{wasysym}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[utf8]{inputenc}
+\usepackage{todonotes}
+\sloppy
+
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{forest}
+\usepackage{subfigure}
+\usepackage{url}
+%\usepackage{lmodern}
+%\usepackage{fullpage}
+\usepackage{pgfplots}
+% for algorithm description
+\usepackage{alltt}
+% for algorithm description in a box
+\usepackage{boxedminipage}
+% for colorful comment
+\usepackage{color}
+% for decimal precision
+\usepackage{siunitx} % Required for alignment
+% \usepackage[page,toc,titletoc,title]{appendix}
+
+%\usepackage[titletoc]{appendix}
+%\usepackage[ruled,vlined]{algorithm2e}
+%\usepackage[nottoc,notlot,notlof]{tocbibind}
+%\usepackage{verbatim}
+\sisetup{
+  round-mode          = places, % Rounds numbers
+  round-precision     = 4, % to 4 places
+}
+\renewcommand{\footnoterule}
+    {\noindent\smash{\rule[3pt]{2in}{0.4pt}}}
+    
+% algorithm definitions for indentation
+\algdef{SE}[SUBALG]{Indent}{EndIndent}{}{\algorithmicend\ }%
+\algtext*{Indent}
+\algtext*{EndIndent}
+%\makeatletter
+%\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+\newtheoremstyle{nodot}{\topsep}{\topsep}{\itshape}{0pt}{\textbf}{}{.5em}{}
+\theoremstyle{nodot}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{const}[theorem]{Construction}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{technique}[theorem]{Technique}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{property}[theorem]{Property}
+\newtheoremstyle{dot}{\topsep}{\topsep}{\itshape}{0pt}{\bfseries}{.}{.5em}{}
+\theoremstyle{dot}
+\newtheorem{lemmadot}[theorem]{Lemma}
+\newtheorem{claimdot}[theorem]{Claim}
+\newtheorem{factdot}[theorem]{Fact}
+\newtheorem{Obs}{Observation}%[section]
+\newtheorem*{claim*}{Claim}
+
+%\newtheorem{algo}{Algorithm}%[section]
+\newcommand{\ep}{\end{proof}}
+\newcommand{\bp}{\begin{proof}}
+\newcommand{\bpo}{ \begin{proof}[Outline] }
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\toc}[1]{\pagenumbering{roman}\setcounter{tocdepth}{#1}\tableofcontents\newpage\pagenumbering{arabic}}
+
+\makeatletter
+\let\@@pmod\pmod
+\DeclareRobustCommand{\pmod}{\@ifstar\@pmods\@@pmod}
+\def\@pmods#1{\mkern4mu({\operator@font mod}\mkern 6mu#1)}
+\makeatother
+
+\DeclareMathAlphabet{\mathpzc}{OT1}{pzc}{m}{it}
+
+
+%Font shortcuts
+\newcommand{\MC}{\mathcal}
+\newcommand{\MBI}{\mathbf{I}}
+\newcommand{\MBC}{\mathbf{C}}
+\newcommand{\MBP}{\mathbf{P}}
+\newcommand{\MBB}{\mathbf{B}}
+\newcommand{\MBG}{\mathbf{G}}
+\newcommand{\MBCI}{\mathbf{CI}}
+
+\newcommand{\name}{Helix }
+\newcommand{\nameNS}{Helix}
+
+\IEEEoverridecommandlockouts
+\begin{document}
+
+
+\title{\nameNS: A Scalable and Fair Consensus Algorithm Resistant to Ordering Manipulation
+\\
+\begin{large}
+\end{large}}
+\author{Avi Asayag, Gad Cohen, Ido Grayevsky, Maya Leshkowitz,\\ Ori Rottenstreich, Ronen Tamari and David Yakira \\ \\  
+Orbs Research (\href{www.orbs.com}{orbs.com})
+\\ V.1.3
+}
+\maketitle
+\thispagestyle{empty}
+\pagestyle{plain}
+
+\begin{abstract}
+\input{Abstract}
+\end{abstract}
+
+\section{Introduction}
+\input{Intro_new}
+
+\section{Background}
+\label{section_background}
+\input{Background}
+
+
+\section{Model}
+\label{section_model}
+\input{Model}
+
+
+\section{The \name protocol}
+\label{section_Protocol}
+\input{Protocol}
+
+
+\section{Basic properties and proofs}
+\label{section_properties}
+\input{Properties}
+
+
+\section{Selection fairness via correlated sampling}
+\label{section_highload}
+\input{Correlated_Sampling_Ido}
+
+\input{selection_fairness_david}
+
+\input{Experimental_results}
+\label{experiments}
+
+\section{Fast syncs}
+\label{section_syncs}
+\input{Syncs}
+
+\section{Conclusion}
+\input{Conclusion}
+
+\section{Acknowledgements}
+\label{section_acks}
+\input{Acks}
+\clearpage
+
+
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{IEEEtran}
+\bibliography{Bibliography}
+\clearpage
+
+\begin{appendices}
+\section{Communication}
+\label{appendix_comm}
+\input{Appendix_communication}
+\end{appendices}
+
+\end{document}

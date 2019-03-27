@@ -1,0 +1,110 @@
+\subsection{Distributed systems}
+In a distributed system independent entities run local computations and exchange information in order to complete a global task. A fundamental problem in the field is reaching agreement on a common output value. In this problem we consider $n$ entities, each associated with an input value, and the goal is to design a protocol, executed locally by each entity, which ensures all entities output the same value. Existing agreement protocol are designed with various execution environments in mind, or possible behaviors by entities, and result in different performance characteristics.
+
+The properties of a distributed protocol are affected by the quality of the underlying network communication. A few types of synchronous environments we refer to throughout the paper, taken from~\cite{SynchronyDefs} are given hereafter:
+\begin{definition}[Strong synchronous network]
+A network is said to be strongly synchronous if there exists a known fixed bound, $\delta$, such that every message delays at most $\delta$ time when sent from one point in the network to another.
+\end{definition}
+
+\begin{definition}[Partial synchronous network]
+A network is said to be partially synchronous if there exists a fixed bound, $\delta$, on a message's traversal delay and one of the following holds:
+\begin{enumerate}
+\item $\delta$ always holds, but is unknown.
+\item $\delta$ is known, but only holds starting at some unknown time.
+\end{enumerate}
+\end{definition}
+
+% \begin{definition}[Weak Synchronous Network] %taken from Honeybadger
+% A network is said to be weakly synchronous if there exists an upper bound on a message's traversal delay, which is time varying, but it does not grow faster than a polynomial function of time.
+% \end{definition}
+
+%\red{Networks are often characterized based on their synchronism. While in asynchronous networks message delay can be arbitrary, delay is bounded in synchronous networks. 
+%\begin{definition}[Asynchronous and Synchronous Networks]
+%A network is said to be asynchronous if there is no upper bound on message's traversal delay. When such a bound exists, we refer to the network as synchronous. 
+%\end{definition}
+%We later further distinguish between various kinds of synchronous network based on the properties of the delay bound.}
+\noindent A particular execution environment, considered to be general and least constraining with regards to the communication synchrony is the asynchronous network.
+\begin{definition}[Asynchronous network]
+A network is said to be asynchronous if there is no upper bound on a message's traversal delay.
+\end{definition}
+\noindent In the settings presented above, network links can either be \emph{reliable} or \emph{unreliable}. Reliable links are guaranteed to deliver all sent messages, while with unreliable links, messages may be lost in route. In both cases, and in all the environments described above, dispatched messages can be delivered out of order. 
+
+We formulate a primitive that captures the essence of agreement by the three following requirements:
+
+%Citations required
+\begin{definition}[Non-triviality] 
+If a correct entity outputs a value $v$ then some entity proposed $v$.
+\end{definition}
+
+\begin{definition}[Agreement]
+If a correct entity outputs a value $v$ then all correct entities output the value $v$.
+\end{definition}
+
+\begin{definition}[Liveness]
+If all correct entities initiated the protocol then, eventually, all correct entities output some value. 
+\end{definition}
+
+An early protocol to propose a solution to the agreement problem was Paxos~\cite{Paxos}. In Paxos, entities either follow the protocol's prescriptions, or have crashed and thus do not participate at all. Paxos is non-trivial and maintains the agreement property under all circumstances, but is guaranteed to be live only when the network is synchronous and less than half of the entities have crashed. Raft~\cite{Raft}, a modern Paxos variant, explicitly defines a timeout scheme that achieves liveness when communication is synchronous and reliable.
+
+Fischer, Lynch and Paterson~\cite{FLP} showed that a deterministic agreement protocol in an asynchronous network can not guarantee liveness if one entity may crash, even when links are assumed to be reliable\footnote{When links are unreliable reaching an agreement is impossible even in a strongly synchronous network, a result known as the two generals problem~\cite{2Generals}.}. A key idea there is that in an asynchronous system one cannot distinguish between a crashed node and a correct one. Hence, deciding the full network's state and deducing from it an agreed-upon output is impossible.
+
+A variant of the agreement problem assumes a more involved failure model, where nodes may act maliciously in addition to crashing. A Byzantine entity does not follow the protocol's instructions and behaves arbitrarily. This problem is often called \emph{Byzantine agreement} (BA) and was introduced by Lamport, Shostak and Pease~\cite{GeneralsByzantine}. A well known result in the field of distributed systems is that in an asynchronous network, agreement cannot be reached unless less than $1/3$ of the participants are Byzantine.
+
+A natural extension of the single-value agreement problem is to agree on a set of values. In agreement on a sequence (log) of values, the agreement needs to cover both, the output values and their order. Given a solution for a single-value agreement, it can be used as a black box to achieve agreement on a sequence of values. However, a version of Paxos (sometimes called Multi-Paxos or multi-decree Paxos) optimizes it by dividing the consensus protocol to a fast ``normal mode” and a slow ``recovery mode”. The recovery mode (which is also run initially when the protocol starts) selects a leader with a unique (monotonically increasing) ballot number. In the normal mode, the leader coordinates agreement on a sequence of values using an expedited protocol. If the leader fails or is suspected to have failed, the slow recovery mode is run to elect a new one. Similarly, Castro and Liskov proposed Practical Byzantine Fault Tolerance (PBFT)~\cite{PBFT} which was the first efficient protocol to implement agreement on a sequence of values in the presence of (less than a third) Byzantine entities, employing similar type of optimization.
+
+%with the SMR approach\footnote{The method of implementing a fault tolerant service by replicas of coordinating servers that manifest strong consistency to any client’s query is often called State Machine Replication \cite{ClocksDistributed},~\cite{StateMachineReplication}.}.
+
+We further formulate a primitive that satisfies \emph{agreement on a sequence of values} written to a log, through the previous requirements, together with an additional requirement. In agreement on a sequence of values, values are written to a specific slot or index in the log.
+%Citation required
+\begin{definition}[Strong consistency]
+For any pair of correct entities $i,j$ with corresponding logs $(v_0^i,v_1^i,\dots,v_l^i)$ and $(v_0^j,v_1^j,\dots,v_{l'}^j)$ where $l \leq l'$, it holds that $v_k^i=v_k^j$ for every $k \leq l$.
+\end{definition}
+
+A protocol that satisfies strong consistency is said to be \emph{safe}. Intuitively, this means that for every position in the log, or index, only one value can be agreed upon and once a value was agreed upon in a certain position, it will stay there indefinitely.
+
+%In the context of the famous Nakamoto consensus~\cite{Bitcoin}, the value agreed-upon is a block, an ordered collection of transactions. In this context, the common term for having both agreement and strong consistency is \emph{finality} (instead of \emph{safety}), and because strong consistency is never formally achieved, we measure the probability of finality to break, which approaches zero as subsequent blocks are added. Because finality is never entirely achieved, it is possible for alternative blocks to have the same index, or \emph{height}, resulting in a data structure that can be interpreted as a tree of blocks rather than a chain. Of the alternative chains within this tree, each entity selects the longest chain it sees and considers it as valid. Over time, this rule should yield a single prefix-chain that is agreed upon by all.
+
+A different approach to reach agreement on a sequence of values is referred to as Nakamoto consensus~\cite{Bitcoin}. The fundamental data structure that underlies the consensus is the famous \emph{blockchain}.
+A blockchain, similarly to a linked list, is a sequential data structure composed of blocks, each pointing to the previous one by storing its hash. This yields a very strong property where any modification to the data included in a block utterly changes the output of its hash. Hence, modification of one block in the blockchain causes any succeeding block to change. Therefore, securing the hash of the current block guarantees that any previous block was not tampered and consensus on the history can be kept.
+
+Reaching consensus on the current block remains the main problem. The Nakamoto consensus allows multiple values (blocks) to exist in the same index (height), resulting in a data structure that is better interpreted as a tree of blocks rather than a chain. Of the branches within this tree an entity is aware of, she selects the longest one as the valid chain (more accurately, she selects the branch that admits to the most amount of accumulative work according to the PoW principle~\cite{PoW}, which we do not explain in this paper). Over time, this rule yields a single prefix-chain that is agreed upon by all. Nakamoto consensus is thus said to satisfy \emph{eventual consistency}, rather than strong consistency or \emph{finality}. 
+
+The eventual consistency of the Nakamoto consensus highly depends on the network being strongly synchronous, where new blocks propagate to the network in negligible time relative to the average block creation rate~\cite{AsyncAnalysisBlockchain}. In case this assumption does not hold, the resilience of the longest chain rule may become fragile, facilitating an attacker to successfully re-organize the valid chain\footnote{The GHOST~\cite{Ghost} protocol suggests the ``heaviest subtree'' rule to determine the valid chain, partially mitigating this problem.}.
+
+\subsection{Cryptographic primitives}
+\label{section_cryptoprimitives}
+\subsubsection*{Threshold Cryptography}
+\label{Threshold_Cryptography}
+Threshold cryptography~\cite{thresholdcrypto} refers broadly to techniques for allowing only \emph{joint groups} of parties to use a cryptosystem, be it to compute signatures, or to decrypt data. In particular, a $(t,n)$-threshold encryption cryptosystem is executed by $n$ entities, any of which can encrypt messages, while the cooperation of $t+1$ $\big( \text{for some fixed } t \in \{1,\dots,n-1\} \big)$ is necessary in order to decrypt messages successfully. Threshold security guarantees that any attempt by up to $t$ of the entities to decrypt a ciphertext is bound to fail. The $(t,n)$-threshold cryptosystem we refer to in this paper consists of the following components: 
+%\red{Let's use lower case in a similar format for all keys (encryption and signatures). We should use the same term of secret keys in both if they are different. What's in between verification and public? Do we need also public for decryption?}
+\begin{enumerate}
+\item A distributed key generation scheme executed once to set up a common public key $PK$, secret keys $S_0,\dots,S_{n-1}$ and verification keys $V_0,\dots,V_{n-1}$.
+\item A non-malleable encryption scheme\footnote{A non-malleable encryption scheme guarantees that it is impossible to transform a given ciphertext, of a plaintext $m$, into another ciphertext which decrypts to a related plaintext, $f(m)$ (for a known function $f$).}~\cite{malleable} which uses $PK$ for encryption.  %what is "related ciphertexts"?
+\item A threshold decryption scheme which consists of two parts. In the first part, individual (and secret) key shares obtained by each entity are used in order to produce decrypted shares (from the ciphertext). The second part allows joining $t+1$ decrypted shares in order to retrieve the original message. A non-malleable threshold encryption scheme must include two local verification steps. First, to validate the ciphertext before producing a share, and second, to validate the shares before joining them.
+\end{enumerate}
+We note that one appropriate choice for a such a threshold encryption cryptosystem is~\cite{Shoup-Gennaro}.
+
+
+\subsubsection*{Hash Functions}
+\label{Hash_Functions}
+We rely on an efficiently computable cryptographic hash function, $H$, that maps arbitrarily long strings to binary strings of fixed length. One property we will explicitly assume our hash function admits to is \textit{collision-resistance}:
+\begin{definition}
+	A hash function $H$ is said to be \emph{collision resistant} if it is infeasible to find two different strings $x$ and $y$ such that $H(x)=H(y)$.
+\end{definition}
+\noindent Additionally, we model $H$ as a random oracle~\cite{RandomOracleModel} as is often assumed in the literature.
+
+
+\subsubsection*{Digital Signatures}
+\label{Digital_Signatures}
+Digital signature schemes enable authenticating a message by verifying it was created by a certain entity.
+Digital signatures usually require a secret key, denoted by $sk_i$, used by entity $i$ for signing a message, and a public key, denoted by $pk_i$, used for verifying the signature of entity $i$. To prevent anyone else from signing on her behalf, an entity should not share her secret key. Any entity with knowledge of the public key can verify the signature. 
+A digital signature scheme typically consists of three algorithms: a key generation algorithm, a signing algorithm, and a verification algorithm.
+In order to produce a new pair of keys, $sk$ and $pk$, the generation algorithm is used. The binary string $\sigma_{i}(m)$ is referred to as the digital signature of entity $i$ over a message $m$ and is produced using the signing algorithm and $sk_i$.
+%The signature message of entity $i$ for message $m$ is the tuple $\langle m \rangle _{\sigma_i}:=\left(m,pk_i,sig_i(m)\right)$ which contains the message $m$, the public key of the signer $i$, and the corresponding digital signature. 
+
+The main properties required from a digital signature scheme are:
+\begin{enumerate}
+\item Legitimate signatures pass verification. $\sigma_i(m)$ passes the verification algorithm under $i$'s public key and the message $m$.
+\item Digital signatures are secure. Without knowledge of $sk_i$ it is infeasible to find a string that passes the verification algorithm, for a message $m$ that was never signed by $i$ beforehand, even to an adversary that is allowed to view signatures under $sk_i$ (for other messages).
+\end{enumerate}
+\noindent We denote by $\langle m \rangle_{\sigma_i}$ the signature message which contains the message $m$, the identity of the signer $pk_i$ and the signature $\sigma_i(m)$.

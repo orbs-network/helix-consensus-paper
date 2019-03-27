@@ -1,0 +1,380 @@
+In typical blockchain protocols, nodes, such as miners, have the freedom of choosing which transactions to include in a block. Normally, transactions come along with a fee and nodes choose the highest paying transactions available. 
+%This causes a fundamental problem to the incentive structure of these protocols, as nodes are encouraged \emph{not} to propagate transactions they receive~\cite{red_balloons}. 
+In Concord a fee-per-transaction mechanism is given up altogether, 
+%thus changing the incentive structure of forwarding transactions. The elimination of fees 
+raising anew the freedom nodes have in choosing transactions.
+
+In Sec.~\ref{section_Protocol} we stated that a correct primary "chooses uniformly at random at most $b$ $etx$s from its Epool" but did not elaborate as to how this is done or validated. This is the goal of this section. An important aspect in this context is the relation between the rate at which $etx$s are issued and the rate at which they are appended to the blockchain. An epoch at which the \emph{issuance rate} is smaller than the maximal \emph{append rate} the system permits is relatively easy to analyze - all transactions are processed within a small time frame. A more involved case is when the issuance rate is greater than the append rate. During such epochs, there are many $etx$s pending to be added to the blockchain. This makes the decision of which $etx$s to include in an Eblock more significant and subject to manipulations, which is something we wish to limit.
+
+%motivation - representation fairness
+In \emph{highload regime} epochs, Concord strives to satisfy \emph{representation fairness} towards its nodes, meaning that nodes are represented in Eblocks in accordance to their relative issuance rate\footnote{In future work we will relate to some problems that such fairness may yield, e.g., that nodes artificially produce many self-owned transactions in order to get more block real-estate.}. To achieve this, we introduce a \emph{deterministic procedure} for choosing transactions that emulates random sampling of one's Epool. Furthermore, this procedure is \emph{verifiable} in the sense that a node validating a proposed Eblock, can check that the $etx$s it contains were selected legally. This ensures that Byzantine primaries cannot exploit highload epochs to their benefit by over-servicing favored nodes.
+
+%Section structure
+In this section we shall describe the procedure for choosing transactions and the way we incorporate it into Concord. Then, we analyze the benefits and risks introduced to the protocol by these modifications.
+
+\subsection{EBlock construction in highload epochs}
+%Definition of a blocchain protocol under highload regime
+%Definition proposal I:
+% \begin{definition}{\textbf{($\lambda$-highload epoch)}}\label{def:highload}. 
+% We say that a blockchain protocol, in which the number of $etx$s in an Eblock is some fixed, agreed upon parameter $b$, is in $\lambda$-highload epoch if for every correct node, the size of its Epool is at least $\lambda \cdot b$, where $\lambda$ is some constant greater than $1$. 
+% \end{definition}
+%This definition is not complete. Do we have a time limit for this restriction? Do we want a limit on the size of the Epool? 
+We introduce our method of constructing an Eblock in a way that would limit manipulations in highload epochs. We start with a formal definition of an highload epoch, then describe and explain in detail the selection procedure and how Eblocks are validated and incorporated in the blockchain.
+
+\begin{definition}{\textbf{($(\lambda,\Gamma)$-highload epoch)}}\label{def:highload}. 
+Let $\lambda>1,\Gamma>1$. We say that a blockchain protocol, in which the number of $etx$s in an Eblock is bounded by some parameter $b$, is in a $(\lambda,\Gamma)$-highload epoch, if at least one of the following holds: 
+	\begin{enumerate}
+    	\item \label{rep:highload_cond1}The number of $etx$s issued and disseminated to the network in the course of one term is at least $\lambda \cdot b$.
+        \item \label{rep:highload_cond2} The size of correct nodes' Epools are larger than $\Gamma \cdot b$. 
+    \end{enumerate}
+\end{definition}
+
+The definition captures two typical highload scenarios. The first condition captures the scenario when sizes of Epools increase, which happens when the issuance rate is greater then the rate in which $etx$s are appended into the blockchain. If condition \ref{rep:highload_cond1} holds, then in every term the size of the Epools increase by $(\lambda-1)\cdot b$. When the issuance rate is no longer greater than $b$, there will still be a time frame where the sizes of the Epools are relatively large. At this point condition \ref{rep:highload_cond2} will kick in, until the size of correct nodes' Epools is smaller than $\Gamma \cdot b$.
+
+When considering growing Epools, we must address the question of how large can they get. If the Epools are too large, the network cannot achieve its goals and is de-facto broken. We wish to make sure that so long as the Epools are of reasonable size, we can ensure some desired properties - namely safety, liveness, and fairness. This leads us to the notion of $MAX_{Epool}$, which is the maximal number of $etx$s in a correct node's Epool. We further note that if $\lambda$ is much greater than $1$ the system fails completely, as $etx$s might take very long to be included in Eblocks.
+
+%Intuition of hash sampling
+%Intuitively, when Epools contain more than $b$ $etx$s, correct primaries will pick $etx$s whose hash-value (under a randomly tweaked hash function) is small.
+
+\textbf{Eblock Construction.} We start with the notion of a node \emph{locking} its Epool. We denote by $EP_i^t$ node $i$'s locked Epool at time $t$, which is a snapshot of the $etx$s in its Epool at time $t$\footnote{This can be implemented by attaching a timestamp to each $etx$ at the time it was received.}. In this section, unless stated otherwise, we fix the term number $r$. We denote by $t_i$ the time at which node $i$ received $DB^{r-1}$, the decrypted $r-1$ term block. 
+
+%notations: $EB_p$
+%constructing a valid Eblock in term $r$
+Let $i$ be some node and denote the Eblock it constructs by $EB_i$. Assume for simplicity that $b$ is a power of $2$. Every $etx$ in $EP_i^{t_i-2\Delta}$ has a hash value according to $H(RS^{r-1},etx)$. The first $\log (b)$ bits of this hash value determine a partition of the $etx$s of $EP_i^{t_i-2\Delta}$ into $b$ bins. That is, $H(RS^{r-1},etx)=[b]\times [s]$ where $s$ is a large integer. We define $a_j$, the $j$th $etx$ in $i$'s Eblock, to be the minimal value $etx$ in $EP_i^{t_i-2\Delta}$ that is hashed to the $j$th bin. That is, 
+\begin{equation}\label{def:a_j}
+a_j=argmin _{etx\in EP_i^{t_i-2\Delta}}\{H(RS^{r-1},etx)|H(RS^{r-1},etx)=j\times v_j\}
+\end{equation}
+If there does not exist an $etx\in EP_i^{t_i-2\Delta}$ such that $H(RS^{r-1},etx)=j\times v_j$ then $v_j=\bot$. We note that $RS^{r-1}$, which was already used to randomly select the committee members in term $r$, is used here again as a random and unpredictable seed to tweak the hash function and make sure the selection procedure admits a random sample of $b$ $etx$s from one's Epool. This is explained in detail later on. Another term we use is $TH_i$, which serves as the threshold hash-value of an $etx\in EB_i$. We will refer to it as the \textit{threshold of node $i$}. $TH_i$ is the value for which if an $etx\in EP_i^{t_i-2\Delta}$ satisfies $H(RS^{r-1},etx)\leq TH_i$ then, $etx\in EB_i$. Equivalently, $TH_i$ is the $b$ lowest hash-value of an $etx$ in $EP_i^{t_i-2\Delta}$. 
+
+The choice of the lock time $t_i-2\Delta$ was chosen in order to ensure that network latency does not allow the primary to prepare tailor-made $etx$s, \emph{after} revealing the next random seed and forwarding them to the rest of the network. 
+%The intuition for setting a lock time of $2\Delta$ is as follows. Taking the $b$ lowest hashed $etx$s appears to be random and unpredictable to other nodes. This is true, so long as the ordering $H$ induces on the Epools is unpredictable. However, 
+Due to network latency, it could be the case that $RS^{r-1}$ is revealed to node $p$ before other nodes - and by (at most) $2\Delta$ time. The primary can exploit this extra time to generate $etx$s with low hash value (i.e., with low $H(RS^{r-1},etx)$) and disseminate them to the network. Restricting committee members to consider only $etx$s which are known to them prior to time $t_i-2\Delta$ prevents this kind of attack. We thus end up with a selection procedure which is random and unpredictable.
+
+Node $i$ constructs Eblock $EB_i$ in every term in which it is a committee member. If $i$ is the primary then it sends its constructed Eblock to other committee members in order for them to accept and commit it. Otherwise, as explained next, $EB_i$ is used in order to perform the validation process. 
+
+%notations: $EB_i$
+%validating an Eblock in term $r$
+\textbf{Eblock Validation.} Upon receiving a pre-prepare message proposing an Eblock $EB_p$, a correct committee member $i$, validates it by performing the validation process presented in~\ref{Protocol:ValidateEB}, along with an additional validation. Denote the $etx$s in $EB_i$ by $a_1,a_2,\dots ,a_b$ and the $etx$s in $EB_p$ by $p_1,p_2,\dots, p_b$. $i$'s validation includes: 
+\begin{enumerate}
+\item Denote by $G$ the set of indices $G=\{j\in [b]|a_j=p_j \wedge a_j\neq \bot\}$ then $i$ checks that $|G|\geq \beta \cdot b$.
+\item Denote by $N$ the set of indices $N=\{j\in [b]|a_j=\bot \wedge p_j\neq \bot\}$ then $i$ checks that $|N| \leq \beta \cdot b$.
+\end{enumerate}
+Where $\beta$ is a number between 0 and 1. $i$ checks that there are at least $\beta\cdot b$ $etx$s that are shared among the Eblocks. That is, it checks that there exist at least $\beta\cdot b$ indices $j$ for which $a_j=p_j$. 
+
+
+%Explanation as to the locking times choices
+%\red{VERSION 1:}
+
+%Locking a validating committee member's Epool at $t_i-2\Delta$ ensures that the primary could not have the time to dissipate tailor-made $etx$s for term $r$. Due to the synchrony assumptions we have, it is guaranteed that the primary could not have revealed $DB^{r-1}$ (and thus also $RS^{r-1}$) prior to $t_i-2\Delta$. Put differently, $t_i-2\Delta < t_p$ (recall the decryption process). 
+
+%Explanation as to why $\alpha$ can be assumed close to $1$
+%To maintain the liveness of the protocol, we rely on a large overlap between their Epools at the locking time, that is between $EP_p^{t_p-2\Delta}$ and $EP_i^{t_i-2\Delta}$. The locking time of the validators is enforced upon us to ensure no tailor-made $etx$s are dissipated. The locking time of the primary, on the other hand, is chosen to maximize its overlap with the other Epools (at their locking time), so as to increase its chances of being validated. In absence of any other information, the primary's best guess is that $t_i\sim t_p$, that is, the decryption time of the primary is roughly the same as the other node's decryption time. In this way, it is safe to assume that at the locking time, the primary's Epool is similar to other nodes' Epools. 
+
+%Justification: the deterministic rule emulates a random sample of one's Epool.
+%Thus far we have argued that the deterministic $etx$ selection procedure emulates a random sample of one's Epool. We showed that no primary can manipulate nodes' Epools after revealing $RS^{r-1}$ by quickly forwarding low-hashed $etx$s for term $r$. Following similar logic, it is also true that other nodes cannot manipulate the primary's Epool and have it construct an Eblock with a disproportionate amount of their $etx$s.
+
+%What are the risks introduced by these modifications?
+%In the following section we show that the deterministic selection procedure and the validation process that goes with it maintains Concord's basic properties: 
+%\begin{itemize}
+%\item Safety. We are only limiting the valid Eblocks and thus safety is not affected.
+%\item election-fairness. We did not change the way $RS^r$ is being produced and thus this property is kept trivially.
+%\item Liveness (strong liveness). We show later that with overwhelming probability a validly constructed Eblock gets committed.
+%\end{itemize}
+
+%What do we gain from this?
+%representation fairness
+%We then show the main gain to Concord from this modification, namely that Concord is \emph{$\epsilon$-representation fair} (as defined later). This is a consequence of the fact that with this validation method, the power of a Byzantine primary to construct an unfair Eblock is limited. 
+
+
+%Explanation as to the locking times choices
+
+%DAVID: This paragraph is not written so well
+The benefit of the validation process is that it checks that $etx$s in the proposed Eblock were chosen in a manner that is close to the random selection induced by the hash function. The extent of closeness is related to the $\beta$ overlap required by the validations. Since the method of $etx$ selection is close to random, we can expect the protocol to admit the property of \textit{representation fairness}, which is simply to say that nodes' representation in Eblocks is similar to their relative representation in $etx$s issuance. The reason we cannot ask for equality between $EB_i$ and $EB_p$ is that due to latency, the nodes' Epools can differ slightly, and this difference accounts for different Eblocks as well. The consequence of this looser validation is that we cannot force perfect fairness towards nodes, but only $\epsilon$\textit{-representation fairness} which we define and prove in \ref{subsec:repfair}.
+Before proving what we gain from the new validation conditions, in the next section we show that the validation does not hurt the liveness of the protocol (as safety and election fairness are trivially kept).
+
+%Explanation as to why $\alpha$ can be assumed close to $1$
+
+%Justification: the deterministic rule emulates well random sampling of one's Epool. A proposed Eblock will be validated against an Epool prior to the time the primary could have constructed the Eblock.
+
+%intuition as to each added step in the validation process
+
+%validating $th^r$ assuming close Epools at any point in time for any correct pair.
+
+%validating the content of an Eblock.
+
+
+%Intuition as to each new step
+
+%What do we gain from this?
+%representation fairness
+%What are the risks introduced by these modifications?
+
+%Question:
+%Can we check that a proposed Eblock is only contained within the validating Eblock? or do we have to look at the intersection? I ask because we can verify a correct primary constructs its Eblock according to an older Epool and thus at the construction time an $etx$ selected by the primary is with high probability known to the validators. Vice versa though, is not true...
+%This is a softer condition than the intersection - thus it shouldn't affect liveness. What about representation fairness?
+
+\subsection{Liveness} \label{Liveness}
+%The problem in Concord's terms
+	%(Repetitive) The main goal of the validation condition is to restrict the primary's ability to deviate from a random selection of $etx$s, which would ensure \textit{representation fairness}.
+For $j\in [b]$ define $A_j=\{etx\in EP_i|H(RS^{r-1},etx)=j\times v_j\}$ and $P_j=\{etx\in EP_p|H(RS^{r-1},etx)=j\times v_j\}$
+
+\begin{lemma}
+For each $j\in b$ it holds that \textbf{Pr}$[a_j=p_j|A_j\neq \emptyset \wedge P_j\neq \emptyset]\geq \alpha ^2$ 
+\end{lemma}
+
+\begin{lemma}
+With overwhelming probability, $|\{j|A_j\neq \emptyset \wedge P_j\neq \emptyset\}|\geq \beta\cdot b$
+\end{lemma}
+\begin{proof}Denote by $F\subseteq [b]$ the set of indices $F=\{j|A_j\neq \emptyset \wedge P_j\neq \emptyset\}$. For index $j\in F$ define a random variable $Y_j$
+\begin{equation}
+  Y_j= \begin{cases}
+      1  &\mbox{if }  a_j=p_j \\
+      0  &\mbox{otherwise}
+    \end{cases}
+\end{equation}
+The $Y_j$ are Bernoulli independent random variables such that $\mathbb{E}[Y_j]\geq \alpha^2$. Define $Y=\sum_{j\in F}{Y_j}$. $j$ contributes to the validation passing exactly if $j\in F$ and $Y_j=1$. We wish to show that $Y\geq \beta\cdot b$. 
+\end{proof}
+To maintain \emph{strong liveness}, we must guarantee a correct Eblock is validated with \emph{overwhelming probability}. This depends, of course, on the choice of $\beta$ and the definition of overwhelming probability. We show that for $\beta=0.82$, a correct Eblock is validated with probability greater than $1-\textbf{exp}(-20)$.
+
+%The problem in terms of our model - formal claim
+Showing that Concord is strongly live with $\beta=0.82$ amounts to proving the following claim, which is symmetric with respect to $p$ and $i$:
+\begin{claim} {}For $p$ and $i$ two correct nodes, node $i$ validates $EB_p$ with overwhelming probability. I.e., $|EB_p\cap EB_i|\geq 0.82\cdot b$ with overwhelming probability.
+\end{claim}
+The claim holds under two assumptions:
+\begin{enumerate}
+\item Eblocks are not too small: that is, we assume $b>1,000$.
+\item For every two correct nodes $i$ and $j$ and times $t_i$ and $t_j$ when they received $DB^{r-1}$, if $etx\in EP_i^{t_i}$ then $etx\in EP_j^{t_j}$ with probability $\alpha>0.9$. \label{rep:assumption2}
+\end{enumerate}	
+We wish to motivate the second assumption. The reason we assume $\alpha<1$, i.e., that the probability an $etx$ in $EP^{t_i}_i$ is also in $EP_j^{t_j}$ is smaller than $1$, is on account of two reasons. The first is that due to latency an $etx$ that arrived to $i$ by time $t$ did not necessarily arrive to $j$ by time $t$. Moreover, the times $t_i$ and $t_j$ may differ between two correct nodes (by at most $2\Delta$), due to network latency.
+%Intuition (on a moral level, what do we need for liveness)
+The drop to $\beta<\alpha$ in the Eblock validation intersection is in order to ensure that with \emph{overwhelming probability} the intersection between the Eblocks is at least $\beta\cdot b$.
+
+  %Proof of claim (formal)
+  \begin{proof} For two nodes $i$ and $p$ and term $r$, the lock times of the Eblocks are fixed so we omit them from the notation. For an $etx\in EB_p$, let $Y_{etx}$ be the random variable stating whether $etx\notin EP_i$. Namely, 
+	 \begin{equation}
+    Y_{etx} =
+    \begin{cases}
+      1  &\mbox{if }  etx\notin EP_i \\
+      0  &\mbox{otherwise}
+    \end{cases}
+  \end{equation}
+  By assumption \ref{rep:assumption2}, $\{Y_{etx}\}_{etx\in EB_p}$ are independently identically distributed Bernoulli variables with success probability $1-\alpha$. Define $Y:=\sum_{etx\in EB_p} Y_{etx}$. Then $Y=|EB_p\setminus EP_i|$ and $\mathbb{E}[Y]=(1-\alpha)\cdot|EB_p|=(1-\alpha)\cdot b$. We are interested to bound the probability that $Y$ is greater than $(1-\beta)\cdot b$ for some $\beta\leq \alpha$. Using Chernoff bound on $Y$, we get
+%using *Chernoff* inequality for liveness
+ \begin{equation}\begin{split}\label{eq:rep_chernoff}
+ \textbf{Pr}\left[Y>(1-\beta) \cdot b\right]&=\textbf{Pr}\left[Y>\left(1+\left(\frac{1-\beta}{1-\alpha}-1\right)\right)(1-\alpha)\cdot  b\right]\\
+ &\leq \textbf{exp}\left(-\frac{\left(\frac{1-\beta}{1-\alpha}-1\right)^2(1-\alpha) \cdot b}{2}\right)=:\eta 
+\end{split} \end{equation}
+%gibuy::::
+%For two nodes $i$ and $p$ and term $r$, the lock times of the Eblocks are fixed so we omit them from the notation. For an $etx\in EB_p$, let $Y_{etx}$ be the random variable stating whether $etx\in EP_i$. Namely, 
+%	 \begin{equation}
+ %   Y_{etx} =
+  %  \begin{cases}
+   %   1  &\mbox{if }  etx\in EP_i \\
+    %  0  &\mbox{otherwise}
+    %\end{cases}
+  %\end{equation}
+  %By assumption \ref{rep:assumption2}, $\{Y_{etx}\}_{etx\in BP_p}$ are independently identically distributed Bernoulli variables with success probability $\alpha$. Define $Y:=\sum_{etx\in BP_p} Y_{etx}$. Then $Y=|EP_i\cap EB_p|$ and $\mathbb{E}[Y]=\alpha\cdot|EB_p|=\alpha\cdot b$. We are interested to bound the probability that $Y$ is smaller than $\beta \cdot b$ for some $\beta\leq \alpha$. Using Chernoff bound on $Y$, we get
+%using *Chernoff* inequality for liveness
+ %\begin{equation}\begin{split}\label{eq:rep_chernoff}
+ %\textbf{Pr}\left[Y<\beta \cdot b\right]&=\textbf{Pr}\left[Y<\left(1-\left(1-\frac{\beta}{\alpha}\right)\right)\alpha\cdot  b\right]\\
+ %&\leq \textbf{exp}\left(-\frac{\left(1-\frac{\beta}{\alpha}\right)^2\alpha \cdot b}{2}\right)=:\eta 
+%\end{split} \end{equation}
+
+Recall that $TH_p$ denotes the \textit{threshold} of user $p$, namely the hash value of the $b$-th $etx$ in $EP_p$, and we defined $EB_p$ to be the set of the $b$ $etx$s in $EP_p$ with the lowest hash value. Thus, an equivalent definition for $EB_p$ is $EB_p:=EP_p\cap \{etx|H(RS^{r-1},etx)\leq TH_p\}$. 
+First, consider the case that $TH_p\leq TH_i$. In this case any $etx\in EB_i\setminus EB_p$ is also in $EB_i\setminus EP_p$. 
+%\begin{equation}
+%\mathbf{Pr}[EB_i\setminus EB_p>(1-\beta)\cdot b]=\mathbf{Pr}[EB_i\setminus EB_p>(1-\beta)\cdot b\wedge TH_p\leq TH_i]+\mathbf{Pr}[EB_i\setminus EB_p>(1-\beta)\cdot b\wedge TH_p>TH_i]
+%\end{equation}
+%\begin{equation}\begin{split}
+%\mathbf{Pr}[|EB_i\setminus EB_p|>(1-\beta)\cdot b\wedge TH_p\leq TH_i]&= \mathbf{Pr}[TH_p\leq TH_i]\cdot \mathbf{Pr}[|EB_i\setminus EB_p|>(1-\beta)\cdot b | TH_p\leq TH_i]\\
+%&=\mathbf{Pr}[TH_p\leq TH_i]\cdot \mathbf{Pr}[|EB_i\setminus EP_p|>(1-\beta)\cdot b | TH_p\leq TH_i]
+%\end{split}\end{equation}
+
+From equation \ref{eq:rep_chernoff}, $|EP_i\cap EB_p|\geq \beta\cdot b$ holds with probability greater than $1-\eta$.  It follows that with probability greater than $1-\eta$,  $|EB_i\cap EB_p|\geq \beta \cdot b$ holds as well. 
+
+
+Next consider the case that $TH_i\leq TH_p$. Swapping $i$ and $p$ in the first part of the proof we get that $|EP_p\cap EB_i|< \beta \cdot b$ with probability of at most $\eta$. Thus by the same argument used in the previous paragraph, we get that with probability greater than $1-\eta$, $|EB_i\cap EB_p|\geq \beta \cdot b$ holds in this case as well.
+
+To get the desired $\beta=0.82$, assume $\alpha=0.9$ and $b\geq 1,000$. For $\beta=0.82$ we get that $\eta<\textbf{exp}(-20)$ which concludes the proof. 
+    \end{proof}
+    
+Before we continue to show how the large overlap translates to Concord being representation fair, we make two remarks. First, it is apparent that the new validation conditions do not hurt the \emph{safety} of Concord. Indeed, it still holds that at most one block is agreed upon in each term. The second remark is in regards to the fact that $\beta$ overlap leaves the adversary $(1-\beta)\cdot b$ $etx$s to manipulate. This is still a fairly large fraction of the Eblock, and is higher than what one should expect in a strongly synchronous network. While it is much better than other protocols in which primaries have complete freedom in constructing a block, we remark that by adding several other conditions to the validation process we can gain some control over the "missing" $(1-\beta)\cdot b$ $etx$s\footnote{Consider, for example, a condition requiring the (absolute) hash value of an $etx$ in $EB_p$ to be smaller than some constant. With a careful choice of constant, one can show that this limits the freedom of the primary over the remaining $(1-\beta)\cdot b$ to a small subset of its Epool, without risking liveness.}. We leave this for future work.
+
+
+%The problem in Concord's terms
+
+%The problem in terms of our model - formal claim
+
+%Intuition (on a moral level, what do we need for fairness)
+
+%Proof of claim (formal)
+
+\subsection{Representation Fairness}\label{subsec:repfair}
+%Recall that in our terminology, the users are the ones that issue $etx$s, and each user is associated with a patron node. We call this node the \textit{owner} of the $etx$. 
+%Thus we wish to show that we are fair regarding the representation of owner nodes in an Eblock. That is, we would like to show that the distribution over the owner nodes in which $etx$s are \emph{issued} is close to the distribution over the owner nodes in which $etx$s are \emph{appended} to the blockchain. 
+The motivation behind representation fairness is to assure that if a node issues, say, $10\%$ of the overall $etx$s, then the percentage of this node's $etx$s in the blockchain is close to $10\%$ - no matter how an adversary tries to manipulate. 
+%Clearly, the issuance distribution (that is, the percentage of each node's issued transactions) is not fixed and slightly changes from term to term. Thus we take into account the term when considering these distributions. Moreover, when the issuance distribution suddenly changes, one can not hope that the distribution over the $etx$s appended to the blockchain will 'catch up' with it immediately. Therefore, it makes sense to consider the \emph{accumulative} issuance distribution and the \emph{accumulative} appended distribution up to some term number $r$, and show that they are close to each other. We give a formal definition of the two distributions at term $r$, where we define the beginning of term $r$ as the time the last correct node reveals $DB^{r-1}$. 
+We assume a constant issuance distribution and consider the \emph{accumulative} issuance distribution and the \emph{accumulative} appended distribution up to some term number $r$, and show that they are close to each other. We give a formal definition of the two distributions at term $r$, where we define the beginning of term $r$ as the time the last correct node reveals $DB^{r-1}$.
+\begin{definition}{\textbf{Accumulative-issuance distribution}} \label{def:rep_iss} The accumulative-issuance distribution by term $r$ is a probability vector $\mathcal{DI}^r=(DI_1^r,\dots,DI_n^r)$ where $DI_j^r$ is the fraction of $etx$s owned by node $j$ that were issued by term $r$. 
+\end{definition}
+
+\begin{definition}{\textbf{Accumulative-appended distribution}} The accumulative-appended distribution by term $r$ is a probability vector $\mathcal{DA}^r=\left(DA^r_1,\dots , DA^r_n \right )$ where $DA_j^r$ is the fraction of $etx$s owned by node $j$ that were appended to the blockchain by term $r$. 
+\end{definition}
+
+%Each node receives $etx$s disseminated in the network and adds them to its Epool. A perfect network would disseminate the $etx$s in such a way that the distribution over the owner nodes \textit{received} by some node $i$ is identical to the issuance distribution of $etx$s. In practice, the issued and received distributions can slightly differ. However, for simplicity we neglect this minor difference and assume the accumulative received distribution is equal to the accumulative issued distribution. 
+
+Recall that the method for constructing an Eblock emulates random sampling, so we can expect $\mathcal{DA}^r$ and $\mathcal{DI}^r$ to be very close to each other over time. However, an adversarial primary might choose the $b$ $etx$s for its Eblock differently from the intended method. If the Eblock it proposes is \emph{very} different from the intended method, then a correct node would not approve the adversary's Eblock, and no actual harm is done in terms of fairness. However, a less greedy adversary might choose the $b$ $etx$s to add to its Eblock only \emph{slightly} differently from the protocol's method. Put differently, a clever adversary exploits the allowed difference of $(1-\beta)\cdot b$ $etx$s between the proposed and expected Eblock for its own benefit. Thus, it is unavoidable that adversaries can, to some extent, cause the accumulative-appended distribution to differ from the accumulative-issuance distribution (which is faithfully represented by correct Epools). 
+
+We formally define the term of $\epsilon$-representation fairness and prove that Concord is fair in this sense. 
+
+\begin{definition}{\textbf{$\epsilon$-representation fairness}} A blockchain protocol is $\epsilon$-representation fair if the distance (in $\ell _1$ norm) between the accumulative-issuance distribution and the accumulative-appended distribution by term $r$ is at most $\epsilon+g(r)$, where $g(r)$ is a function that tends to $0$ when $r$ goes to infinity. That is,  $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}\leq \epsilon+g(r)$ and $\lim _{r\rightarrow \infty}g(r)=0$.
+\end{definition}
+ 
+%MAYA!!! For next version define fairness for individual node and prove that it is epsilon\(n-f) safe. 
+To define exactly the $\epsilon$ and $g$ for which Concord is representation fair, we make the following notations: 
+\begin{enumerate}
+    \item We denote by $\delta_f$ the fraction of terms with Byzantine primary's. We remark that due to the \textit{election fairness} of Concord, this number is at most $\frac{f}{n}$ for large enough $r$.
+    \item We denote by $MAX_{dis}$ the maximal number of $etx$s that can be dissipated in the network at a given time. 
+\end{enumerate}
+
+
+\begin{theorem}{\textbf{(Representation Fairness)}} Concord is $\epsilon$-representation fair for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+2MAX_{Epool}}{b\cdot r}$.
+\end{theorem}
+
+Let us first go over the main ideas used in the proof. It is meaningful to understand what kind of behavior may result in a difference between $\mathcal{DA}^r$ and $\mathcal{DI}^r$. First observe that if all nodes follow the protocol, close-to-perfect representation fairness is achieved. 
+%This leaves us to analyze which adversarial manipulations may deviate $\mathcal{DA}^r$ and $\mathcal{DI}^r$. 
+There are two adversarial manipulations, which we refer to as \emph{hiding $etx$s} and \emph{unfair sampling}.
+
+In a hiding $etx$s attack, the adversary simply does not disseminate some (or all) of its $etx$s. When it is chosen as the primary of a term, it includes as many of the hidden $etx$s in its Eblock. These $etx$s are now part of the blockchain, but were never issued (by our definition), so of course they cause a deviation from $\mathcal{DI}^r$. These $etx$s comprise the main part of what we relate to in the proof as $A^r\setminus I^r$ - the appended (absolute) $etx$s minus the issued $etx$s. To what extent this can be done is controlled by the fact that the freedom of the adversary is limited by the $(1-\beta)$-fraction\footnote{We remark that the actual freedom of an adversary is less than $1-\beta$: It is hard to generate to an Eblock with exactly $\beta$ overlap. If one makes adversarial use of the entire $(1-\beta)$-fraction, there is no reason to assume the other $\beta$-fraction will overlap with enough committee members' Eblocks, and thus the Eblock might not be validated.}. 
+
+The second attack is unfair sampling, which is simply exploiting the $(1-\beta)$ freedom in constructing $EB_p$ in a way which deviates from the distribution seen in the primary's Epool. This kind of manipulation effects the set $I^r\setminus A^r$, which is bounded by the maximal Epool size $MAX_{Epool}$\footnote{We believe the bound on this kind of attack can be improved by considering how large a correct threshold $TH_i$ can be, and adding a condition to validate it. We leave that for future work.}.
+
+%Other factors which come into play in the proof, e.g. $MAX_{dis}$, are less significant and are due mainly to network latency.
+
+\begin{proof}
+Fix some correct node $i$ and a term number $r$. As explained above, we assume that the accumulative issuance distribution is the same as the accumulative distribution of $etx$s received by node $i$. Thus we denote $i$'s received $etx$ distribution by $\mathcal{DI}^r$. We use the following notations: denote by $A^r$ the set of $etx$s that were appended to the blockchain by term $r$, and by $I^{r}$ the set of $etx$s that $i$ received by term $r$. $|A^r|\cdot \mathcal{DA}^r$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s appended to the blockchain by term $r$. Similarly, $|I^r|\cdot \mathcal{DI}^{r}$ is the vector whose $j$th coordinate is the number of $j$'s $etx$s that $i$ received by term $r$. 
+For the proof, we rely on the following lemmas.
+%As justified previously in this section, we can assume that the accumulative issuance distribution is the same as the $i$'s accumulative received distribution of $etx$s. Formally, node $i$'s \emph{accumulative received distribution} by term $r$, is a probability vector of length $n$ whose value in coordinate $j$ is the fraction of $etx$s owned by node $j$ that node $i$ received by term $r$. Since these two distributions are identical, we denote the accumulative received distribution of node $i$ by $\mathcal{DI}^r$ from this point on.
+%\red{MAYBE ADD A SHORT EXPLANATION /INTRODUCTON TO THE PROOF}
+
+
+
+\begin{lemma} \label{lemma:rep_symetric}
+\begin{equation} \label{eq:rep_symetric}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot\mathcal{DI}^{r}}\leq \left | A^r \triangle I^{r} \right | 
+\end{equation}
+where $\triangle$ is the symmetric difference between the sets. 
+\end{lemma}
+\begin{lemma} \label{lemma:rep_AminusI} 
+ \begin{equation}|A^r\Delta I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+MAX_\text{Epool}
+ \end{equation}
+ where $\beta<1$ is the intersection parameter in validation \ref{rep:highload_cond2}.
+\end{lemma}
+
+%\begin{equation} \label{eq:rep_abs}
+%\left| |I^{r}|-|A^r|\right| \leq max\{|I^{r}/A^r|,|A^r/I^{r}|\} \leq max \{ \delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h}\cdot \sqrt{b}\right )+L, MAX_{Epool}\}
+%\end{equation}
+%Asymptotically, $\delta_f \cdot r \left((2-2\alpha) b+2c_{\alpha,h} \sqrt{b}\right )+L$ dominates since in grows with $r$ while $MAX_{Epool}$ is a constant. 
+
+
+We defer the proof of the lemmas to after the theorem. We begin by bounding $\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}$,
+\begin{align}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& =\frac{1}{|A^r|} \cdot  \norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^r+|I^r|\cdot \mathcal{DI}^r-|A^r|\cdot \mathcal{DI}^{r}} \nonumber \\ 
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{1}{|A^r|}\cdot \norm{(|I^r|-|A^{r}|)\cdot \mathcal{DI}^{r}} \label{eq:rep_111}\\
+& \leq \frac{1}{|A^r|} \cdot \norm{|A^r|\cdot \mathcal{DA}^r-|I^{r}|\cdot \mathcal{DI}^{r}}+\frac{\left ||I^r|-|A^{r}|\right |}{|A^r|}\cdot \norm{\mathcal{DI}^{r}} \label{eq:rep_222}
+\end{align}
+Where inequality \ref{eq:rep_111} follows from the triangle inequality. 
+From elementary set identities, 
+\begin{equation}
+|I^{r}|-|A^r|=|I^r\setminus A^r|-|A^r\setminus I^r|
+\end{equation}
+
+Thus, 
+\begin{equation}\label{eq:rep_diff}
+\left||I^{r}|-|A^r|\right|\leq \text{max}\{|I^r\setminus A^r|,|A^r\setminus I^r|\}\leq |A^r\triangle I^r|
+\end{equation}
+
+Plugging in the bounds from lemma \ref{lemma:rep_symetric} and equation \ref{eq:rep_diff} in equation \ref{eq:rep_222} we get,
+\begin{equation}\begin{split} 
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}} 
+& \leq \frac{1}{|A^r|} \cdot \left | A^r \triangle I^{r} \right | + \frac{\left | A^r \triangle I^{r} \right |}{|A^r|} \cdot \norm{\mathcal {DI}^{r} }\\
+& =\frac{2\cdot | A^r \triangle I^{r}|}{b\cdot r}
+\end{split}\end{equation}
+Where the last equality follows since $\norm{\mathcal{DI}^r}=1$ and $\left| A^r \right|=b\cdot r$.
+Using lemma \ref{lemma:rep_AminusI} in the last line we get
+\begin{equation}\begin{split}
+\norm{\mathcal{DA}^r-\mathcal{DI}^{r}}
+& \leq \frac{2}{b\cdot r} \left(\delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}\right)\\
+&=2\cdot \delta_f\cdot (1-\beta)+2\cdot \frac{MAX_\text{dis}+ MAX_{Epool}}{b\cdot r}
+%& = (4-4\alpha)\cdot \delta_f +\frac{4\cdot c_{\alpha,\lambda}}{\sqrt{b}\cdot r}+\frac{2L+2MAX_{Epool}}{b\cdot r}
+\end{split}\end{equation}
+Therefore, the theorem follows for $\epsilon =2\cdot \delta_f\cdot (1-\beta)$ and $g(r)=\frac{2MAX_\text{dis}+ 2MAX_{Epool}}{b\cdot r}$.
+\end{proof}
+We turn to proving the lemmas we used in the proof. 
+\begin{proof}\textbf{(Proof of lemma \ref{lemma:rep_symetric})}
+For $j=1,\dots,n$ define $N_j=\left(|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}\right)_j$. From the $\ell _1$ norm definition we have that
+\begin{equation} \label{eq:rep_disN}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}} =\sum _{j=1}^n \left |N_j \right |
+\end{equation} 
+Assume without loss of generality that $N_j\geq 0$ (the reasoning for the case $N_j<0$ is explained in brackets). There are at least $N_j$ $etx$s of node $j$ that have been (have not been) appended to the blockchain by term $r$, but have not been (have been) received by $i$. Put differently, there are at least $N_j$ $etx$s owned by $j$ in the set $A^r \setminus I^{r}$ (in the set $I^{r}\setminus A^r$). This correspondence can be used to define an injective map between $\sum _{j=1}^n \left |N_j \right |$ and the set $A^r \triangle I^{r}$. Thus,
+\begin{equation}\label{eq:rep_injection}
+\sum _{j=1}^n \left |N_j \right |\leq |A^r \triangle I^{r}| 
+\end{equation}
+Note that this is indeed an inequality and not an equality. For example, consider the case where there are $k$ $etx$s owned by node $j$ in $A^r$, and $k$ \emph{other} $etx$s owned by $j$ in $I^r$. Thus $N_j=0$ but the symmetric difference on the right gains a factor of $2k$.
+
+Combining equation \ref{eq:rep_disN} and \ref{eq:rep_injection} we get
+\begin{equation}
+\norm{|A^r|\cdot \mathcal{DA}^r-|I^r|\cdot \mathcal{DI}^{r}}\leq  |A^r \triangle I^{r}| 
+\end{equation}
+\end{proof}
+ %& \leq \frac{2| A^r \triangle I^{r}|}{A^r}\\
+ %& \leq  \frac{1}{|A^r|} \left ((1- (\alpha-\delta )b\cdot \frac{f}{n}\cdot r+ L+MAX_{Epool}\right ) +\frac{\left ||I^r|-|A^r|\right|}{|A^r|} \cdot \norm{ \mathcal {DA}^{r}}\\
+%MAYA !!!! for next version explain that we actually proved something stronger regarding fairness towards users
+
+\begin{proof}(\textbf{Proof of lemma \ref{lemma:rep_AminusI}}.)
+The set $I^{r}\setminus A^r$ contains $etx$s that $i$ received but have not been added to the blockchain by term $r$. These are exactly the $etx$s that are in $i$'s Epool in term $r$. Thus if $MAX_{Epool}$ is the maximum size of an Epool then $|I^{r}\setminus A^r|\leq MAX_{Epool}$. 
+
+We turn to bounding  $|A^{r}\setminus I^r|$.
+There are two types of $etx$s in the set $A^r\setminus I^r$. The first type are $etx$s that are on route to $i$ and have not arrived yet, but have already been included in the blockchain. The number of such $etx$s is bounded by $MAX_\text{dis}$, induced by the maximal number of $etx$s that can be disseminated in the network at a given time. 
+
+The second type of $etx$s in $A^r \setminus I^{r}$ are $etx$s that are what we refered to earlier as \textit{hiding} $etx$s, i.e., those that were not disseminated to the network but are included in Eblocks constructed by adversarial primaries. We note that these $etx$s are never received by node $i$, or any other correct node, and thus it is morally wrong to include them in the blockchain in the first place. However, when a node sees an $etx$ included in the Eblock which it did not receive to add to its Epool yet, it has no way of knowing (at that time) if this $etx$ is of the first or second type.  
+
+We call a term in which the primary that got its Eblock committed was faulty a `faulty term'. For a faulty term $t$ we denote by $\widetilde{EB^t}$ the Eblock committed on term $t$. Similarly, we call a term $t$ in which the primary was non faulty a `non faulty term', and denote its committed Eblock by $EB^t$.  From  the previous explanation we get that
+\begin{align}
+A^r\setminus I^r &= \left(\bigcup_{t\leq r \text{ faulty term}}\widetilde{EB^t} \bigcup_{t\leq r \text{ non faulty term}} EB^t\right)\mathbin{\big\backslash} I^r\\
+&= \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \mathbin{\big\backslash} I^r \right ) \bigcup_{t\leq r \text{ non faulty term}} \left (EB^t \mathbin{\big\backslash} I^r \right )\label{eq:rep_e}
+\end{align}
+For the non faulty terms, the $etx$s in $EB^t$ that are not in $I^r$ are only $etx$s of the first type. Denote by $L^r$ the set of $etx$s that are on route and have not yet been disseminated to node $i$ by term $r$. Then we have that,
+\begin{equation} \label{eq:rep_nonfault}
+\bigcup_{t\leq r \text{ non-faulty term}} \left (EB^t\setminus I^r \right )\subseteq L^r
+\end{equation}
+$L^r$ is bounded, by definition, by $MAX_{dis}$.
+
+Next, for a term $t$ with a faulty primary, we wish to bound $ \widetilde{EB^t} \mathbin{\big\backslash} I^r$. Recall that we denote the $b$ lowest hashed $etx$s in node $i$'s term $t$ Epool by $EB_i^t$. As a start, consider the case $\widetilde{EB^t}$ meets validation condition \ref{rep:highload_cond2} of node $i$. This means that the intersection between $EB_i^t$ and $\widetilde{EB^t}$ is at least $\beta \cdot b$, and so $\left |\widetilde{EB^t}\setminus EB^t_i\right |\leq (1-\beta)\cdot b$. Recall that $I^r$ is the set of all $i$'s received $etx$s by term $r$ and thus $I^r \supseteq EB_i^t$. It follows that $\widetilde{EB^t} \mathbin{\big\backslash} I^r \subseteq \widetilde{EB^t} \setminus EB_i^t $, and thus $\left | \widetilde{EB^t} \mathbin{\big\backslash} I^r \right|\leq (1-\beta)\cdot b$.
+
+In general, it is possible that $\widetilde{EB^t}$ did not meet validation condition \ref{rep:highload_cond2} of node $i$. However, since $\widetilde{EB^t}$ was committed, there exists a correct node $k_t$ that validated  $\widetilde{EB^t}$. We also know that $I^r\supseteq EB^t_{k_t}\setminus L^r$ since $etx$s that are in $EB^t_{k_t}$ are in correct node's $k_t$ Epool, and thus if they are not in $L^r$ then they have already been received by $i$, and thus they are in $I^r$. Hence,
+\begin{equation}\widetilde{EB^t}\setminus I^r \subseteq \widetilde{EB^t} \setminus \left (EB_{k_t}\setminus L^r\right )\subseteq \left (\widetilde{EB^t} \setminus EB_{k_t}\right)\cup L^r 
+\end{equation}
+Taking a union over the faulty terms results in  
+\begin{equation}\label{eq:rep_fault}
+\bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus I^r\right) \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{equation}
+Collecting the bounds of equations \ref{eq:rep_nonfault} and \ref{eq:rep_fault} and  using them in equation \ref{eq:rep_e} we get,
+\begin{equation}\begin{split} \label{eq:rep_sets}
+A^r \setminus I^r \subseteq \bigcup_{t\leq r \text{ faulty term}} \left (\widetilde{EB^t} \setminus EB_{k_t}\right) \bigcup L^r
+\end{split}\end{equation}
+
+%\bigcup_{t\leq r \text{ faulty term}}\{\widetilde{EB^t}\setminus I^r\}\bigcup \{\text{etxs on route on term $r$}\}
+%Fortunately, if it wishes for its Eblock to be approved it cannot include too many such $etx$s, since the intersection between its proposed Eblock and the Eblock `expected'  by most correct nodes in the committee should be large. Moreover, the number of terms where the primary is byzantine is also bounded. Both of these factors come into consideration in the proof. 
+
+We turn to bounding the orders of the sets in equation \ref{eq:rep_sets}. Since $k_t$ is a correct node who validated $\widetilde{EB^t}$, the same reasoning as before shows that $\left |\widetilde{EB^t}\setminus EB^t_{k_t}\right |\leq (1-\beta)\cdot b$. We have:
+\begin{equation} 
+|A^r\setminus I^r |\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}
+\end{equation}
+
+And we conclude that, 
+\begin{equation}\label{eq:rep_symbound}|A^r \triangle I^{r}|= |A^r\setminus I^{r}|+|I^{r}\setminus A^r|\leq \delta_f\cdot r \cdot (1-\beta)\cdot b+MAX_\text{dis}+ MAX_{Epool}
+\end{equation}
+\end{proof}

@@ -1,0 +1,91 @@
+\section{Concord in highload regime}
+%intro and motivation
+In Sec.~\ref{section_Protocol} we did not elaborate as to the process of constructing an Eblock from one's Epool\footnote{In typical blockchain protocols nodes (or miners) have the freedom of choosing which transactions to include in a block. Normally, transactions come along with a fee and nodes choose the highest paying transactions available. In Concord a fee-per-transaction mechanism does not exist, raising anew the freedom nodes have to choose transactions.}. Particularly, we did not consider the rate at which $etx$s are being issued relative to the velocity of appending them onto the blockchain. An epoch at which the \emph{issuance rate} is smaller than the maximal \emph{append rate} the system permits is relatively easy to analyze - all transactions are processed within a small time window. A more involved case is when the issuance rate is greater than the append rate. During such an epoch, there are many $etx$s pending to be added to the blockchain. This makes the decision of which $etx$s to include in an Eblock more significant and subjected to manipulations.
+
+In highload regime epochs, Concord strives to satisfy \emph{representation fairness} towards its nodes, meaning nodes are represented in Eblocks in accordance to their relative issuance rate\footnote{In the appendix we relate to some problems that such fairness may yield, e.g., that nodes artificially produce many self-owned transactions in order to get more block real-estate.}. To achieve this, we introduce a \emph{deterministic procedure} for choosing transactions that emulates random sampling of one's Epool. Furthermore, this procedure is \emph{verifiable} in the sense that a node validating a proposed Eblock, can check that the $etx$s it contains were selected legally. This ensures that Byzantine primaries cannot exploit highload epochs to their benefit, over-servicing favored nodes' transactions.
+
+\subsection{Choosing transactions deterministically}
+We shall describe the deterministic procedure for choosing transactions and the way we incorporate it into Concord. Then, we analyze the benefits and risks introduced to the protocol by these modifications.
+%the threshold-hash test and validly constructing an Eblock
+We remind that thus far, in Concord, a primary is instructed to randomly select (at most) $b$ $etx$s to include in an Eblock it constructs. We now introduce a concrete way by which this is done in a verifiable way (by any other correct node). Fix some term number $r$. 
+%definitions: 
+%Epool$^r$ and the notion of "locking the Epool". We want each correct node to "lock" its Epool in a time in which it is guaranteed no node (or the adversary) knows $RS^{r-1}$, i.e., no one is yet to decrypt %EB^{r-1}%. Theoretically, a few nodes that are randomly selected committee members time and time again can be many terms before other nodes. In practice, since the latency is also bounded from below, we can find a decent minimum bound on propagation time. This makes sure the selection procedure indeed emulates random selection and it helps in justifying the assumption that correct Epools are widely overlapping.    
+
+%Committing to a threshold in the Eblock header
+We introduce a \emph{threshold} value ($th^r$) that is added to an Eblock's header. This value is determined by the size of the Eblock's composer current 
+(locked) Epool. It is chosen in a way that ensures (with overwhelming probability) that the following Eblock to be constructed will indeed include $b$ $etx$s as explained later.
+%note to Grayevsky: note that this scheme takes the Epool size into consideration by the selection of $th$. 
+%Deterministically selecting $etx$s 
+It then randomly selects an $etx$ from its Epool$^{r-1}$ (the Epool it had in term $r-1$, prior to any node having known $RS^{r-1}$ \red{this requires some explanation - why a Byzantine node cannot have $RS^{r-1}$ prior to all correct nodes and keeping it secret for a while so correct nodes still accept $etx$s for term $r$.}) and checks whether $h(RS^{r-1},etx)\leq th^{r-1}$. If so, it includes that $etx$ in the Eblock it constructs for term $r$. Otherwise, it does not. This process is continued until $b$ $etx$s are found. As mentioned, $th^{r-1}$ is tuned such that with overwhelming probability the process terminates prior to the Epool being exhausted. $h$ is an ideal cryptographic (collision-free) hash function. 
+%Justification as to why this deterministic procedure emulates a random selection from the Epool. In particular, it is unpredictable... 
+The reason we hash the $etx$s together with the random seed $RS^{r-1}$ (and not just the term number for example) is that we want the hash values to be incalculable prior to the Epool \emph{locking time}. 
+This ensures an adversary cannot brute-force many $etx$s with small term-$r$ hash values and manipulate the selecting process. Recall that $RS^{r-1}$ is revealed only at decryption time of the already-committed $r-1$ term Eblock. Thus Epool$^r$ is locked prior to any node knowing an adversary does not have enough time to prepare new small hashed $etx$s and dissipate them to the network before term $r$ begins.
+
+%validating an Eblock
+%validating $th^r$ assuming close Epools at any point in time for any correct pair.
+
+%validating the content of an Eblock.
+We add a few steps to segment's 4 validation process presented in~\ref{Protocol:ValidateEB}.
+\begin{itemize}
+\item There are exactly $b$ $etx$s in $EB_j$.
+\item All $etx$s admit to the threshold-hash test.
+\item The fraction of unknown $etx$s is limited and close to $\alpha$. No more than $(\alpha+\lambda)$ of the $etx$s are unfamiliar (i.e., do not appear in Epool)
+\end{itemize}
+
+%Intuition as to each new step
+\begin{itemize}
+\item A Byzantine primary can not slow the protocol.  
+\item Emulating a random selection process from the Epool.
+\item Validating the selection process was done correctly.
+\end{itemize}
+
+%What do we gain from this?
+%representation fairness
+We later define an \emph{$\epsilon$-representation fair} blockchain protocol and show that Concord in highload regime is indeed $\epsilon$-representation fair.
+%What are the risks introduced by these modifications?
+\begin{itemize}
+\item Safety. We are only limiting the valid Eblocks and thus safety is not affected.
+\item Liveness (strong liveness). We show later that with overwhelming probability liveness is kept.
+\end{itemize}
+
+\subsection{Modeling highload regime}
+%Definitions (formal):
+%issuance rate of a node (not sure if accumulative or per-term)
+%append rate of a node (not sure if accumulative or per-term)
+
+%Assumptions (formal):
+%$\alpha$
+
+%Further modeling:
+%Epool and constructing an Eblock: basically a distribution from which we can sample $etx$s until $b$ valid are found. OK to model like this because of the way $th$ is calculated and our assumptions.
+%validating an Eblock: when considering the validation process we can query an oracle whether node $j$'s Epool contains each $etx$ in the Eblock node $i$ had constructed - answer is "yes" w.p. $\alpha$ and answer is w.p. "no" $1-\alpha$.
+
+\subsection{Liveness}
+%The problem in Concord's terms
+
+%The problem in terms of our model - formal claim
+
+%Intuition (on a moral level, what do we need for liveness)
+
+%Proof of claim (formal)
+%using Hoeffding inequality for liveness I:
+Denote by $X_etx$ the random variable that indicates whether node $j$'s Epool contains $etx$ which belongs to node $i$'s Eblock. This is a simple Bernoulli random variable with a success probability of $\alpha$. If $EB_i$ is of size $b$ we get that the amount of $etx$s in $EB_i$ that $j$ knows is given by the random variable $Y = \sum_{k=1}^b X_{etx_k}$. We use Hoeffding inequality to show that with overwhelming probability we have $Y \geq (\alpha-\lambda)b$.
+
+$$\bf{Pr}\left[Y < (\alpha-\lambda)b\right]
+=\bf{Pr}\left[ \frac{1}{b} \sum _{k=1}^b X_k - \alpha < -\lambda \right]
+\leq \bf{Pr}\left[ | \frac{1}{b} \sum _{k=1}^b X_k - \alpha | > \lambda \right]
+\leq 2 exp \left( -2b\lambda^2 \right)$$
+
+If we set: $\lambda=0.1$ we get $b=1500$ which is very reasonable as the size for an Eblock. Setting $\lambda=0.1$ and assuming $\alpha=0.9$ (which is very reasonable given that Epool$^r$ was locked when $DB^{r-1}$ was revealed - we need to prove that no node could have revealed $DB^r$ at the time I revealed $DB^{r-1}$, which is not true.) leads to a correct node declining an Eblock if it does not know at least $80\%$ of the $etx$s in it.
+
+%using Hoeffding inequality for liveness II:
+We also need a method to choose $th$ in a liveness-maintaining way. We have the size of Epool$^r$ (which was locked a while ago) and we can probably choose $th^r$ to be $\frac{ |\text{Epool}^r| }{b}$ (or a bit smaller, to be safe a term-$r$ primary has $b$ $etx$s to include in an Eblock. Its Epool$^r$ might be a bit smaller - but we can assume the size of Epools are extremely close, even more than $\alpha$).
+
+\subsection{representation fairness}
+%The problem in Concord's terms
+
+%The problem in terms of our model - formal claim
+
+%Intuition (on a moral level, what do we need for fairness)
+
+%Proof of claim (formal)

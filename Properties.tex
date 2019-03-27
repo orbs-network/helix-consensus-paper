@@ -1,0 +1,161 @@
+\name achieves three desired properties: safety, liveness and fairness. First and foremost, \name is \emph{safe}. As long as the bound $f$ on the number of Byzantine (rather than sleepy) nodes holds, even without any assumptions on network synchrony, forks cannot happen (i.e., there will not be a situation in which different nodes commit different blocks in the same term).
+Second, \name is \emph{live}. We refer to two types of liveness. First, under a weakly synchronous network \name achieves (eventual) liveness, meaning that new blocks are (eventually) added to the blockchain in some finite time. Second, we show that under a strongly synchronous network \name achieves a stronger property referred to as \emph{strong liveness}, in which new blocks are added within a known bounded period of time.
+Finally, \name is \emph{fair} with regard to three types of fairness. The first two refer to fairness among nodes: election fairness (of committee members) and selection fairness (of transactions in Eblocks). The third type refers to fairness towards users. In this section, we elaborate on each of these three properties and prove that the \name protocol fulfills them. %We rely on the notations and assumptions defined in the previous sections.  
+%Question: Is it true that safety depends on Cmap being explicitly written in the Eblock? This is especially interesting under the fast sync optimization. Could we generate a fork if nodes only compute Cmap locally and make sure all the signatures in the Block-proof belong to the committee they calculated locally. In the fast sync not having the committee in the Eblock introduces new difficulties as nodes that do not belong to the committee might sign and non-synced nodes cannot verify this as they have no idea what the committee is and it is not written in the Eblock...... 
+\subsection{Safety}
+\label{section_properties_safety}
+\name is designed to provide safety even in the case of a slow and unreliable communication network. Safety implies finality, meaning that once an Eblock has been appended to the blockchain in the eyes of any (even one) correct node, then no correct node ever appends a different Eblock for that term. The safety of \name relies on the safety of its underlying protocol, PBFT~\cite{PBFT}.  
+
+\begin{claim}{(\name is safe)}
+Let $0,\dots,n-1$ be the nodes running \nameNS. In term $r$, let $EB^r_i$ and $EB^r_j$ be Eblocks appended by correct nodes $i,j\in [n-1]$, respectively, to their local blockchains. Then, $EB^r_i=EB^r_j$.
+\end{claim}
+\begin{proof}
+For PBFT's proof to be applicable here, we need to show that the committee in term $r$ is a well-defined and agreed-upon set of $m$ nodes. Put differently, we need to show that no correct node can be ``tricked'' into believing she is a committee member when she is actually not, submitting signatures for invalid Eblocks. This is easily prevented by relying on the previous term's Eblock (or more accurately Dblock) to determine the next term's committee. A simple inductive argument can convince that there can be only a single version of $DB^{r-1}$ and thus the composition of the $r$-term committee is well defined. Since all nodes compute the $r$-term committee from their $r$-term Dblock, all correct nodes will agree as to its composition. This concludes the proof using PBFT's safety proof. 
+\end{proof}
+%old proof - formal induction, too long, too complicated.
+% We prove the claim by induction on $r$. We split the proof into three sections. 
+% %We assume that $r$ is not the first term. The proof for the case in which $r$ is the first term is similar, relying on the genesis block which is shared between all the nodes before the protocol starts.  
+
+% \begin{itemize}
+% \item Agreement on committee members: We first show that the committee of term $r$, denoted $C^r$, is a well-defined set of $m$ nodes, i.e., that all correct nodes running \name either agree on $C^r$ or have not yet discovered it. From the induction hypothesis all correct nodes that appended an Eblock in term $r-1$ appended the same Eblock. We denote this Eblock by $EB^{r-1}$. From \nameNS's decryption mechanism and Cmap calculation, we deduce that all correct nodes that appended and decrypted $EB^{r-1}$ hold the same Cmap in term $r$, denoted Cmap$^r$. $C^r$ is simply the first $m$ nodes in Cmap$^r$. The rest of the correct nodes have not yet calculated a Cmap in term $r$.  
+
+% \item Agreement on Block-proofs: From safety in PBFT, we show that any two valid $r$-term Block-proofs correspond to the same $r$-term Eblock (we emphasize that valid Block-proofs in the same term may differ). From our model assumptions there can be at most $f$ Byzantine nodes among the $m=3f+1$ members in $C^r$\footnote{We note that there can be correct nodes in $C^r$ that are not aware of being committee members and thus do not participate and are considered sleepy. In an asynchronous network a sleepy node cannot be distinguished from a slow one and thus is not taken into the $f$ count.}. If a Block-proof exists (it might be the case that a third party intercepted the messages and constructed a Block-proof locally before any of the committee members does so) for a given Eblock, $EB^r$,
+% %\footnote{A Block-proof consists of a pre-prepare message proposing $EB^r$, $2f$ corresponding prepare messages and $2f+1$  corresponding commit messages, all containing a matching $\langle view, term, H(EB^r) \rangle$ and signed by nodes in $C^r$.}
+% then $EB^r$ could have been committed-locally by some node in term $r$. From PBFT's safety, $EB^r$ is the only block that can be committed-locally in term $r$ and thus, any other valid set of such messages could solely relate to the same Eblock.
+
+% \item Agreement on the Eblock corresponding to a given term: Last, we show that $EB^r_i=EB^r_j$ for any correct nodes $u_i$ and $u_j$. In \name there are exactly two ways to append an Eblock in term $r$. The first is to participate in a committee and commit-locally an Eblock that has undergone all the $r$-term PBFT phases. The second is to receive a valid pair $\langle EB^r, BP^r \rangle$ from another node in the network. In both cases, an Eblock is appended only once a valid Block-proof is obtained. That means $EB^r_i$ comes with $BP^r_i$ and $EB^r_j$ comes with $BP^r_j$. From the previous item we know that they relate to the same Eblock, concluding $EB^r_i=EB^r_j$.   
+% %If both $u_i$ and $u_j$ have committed-locally their respective Eblocks, $EB^r_i$ and $EB^r_j$, then, from PBFT's safety, $EB^r_i= EB^r_j$. Otherwise, if, w.l.o.g. only $u_i$ committed-locally $EB^r_i$, and has constructed a valid Block-proof for its Eblock $BP^r_i$ (this notation relates to the first version of $BP^r$ that node $i$ adopted, either constructing it locally or receiving it from another node), then by the previous item it follows that $BP^r_i$ and $BP^r_j$ relate to the same Eblock, implying that $EB^r_i= EB^r_j$. Finally, if neither $u_i$ nor $u_j$ committed their Eblocks locally, but instead received $\langle EB^r_i, BP^r_i \rangle$ and $\langle EB^r_j, BP^r_j \rangle$, respectively, then again, by the previous item, the Block-proofs $BP^r_i$ and $BP^r_j$ relate to the same Eblock. In all cases, $EB^r_i=EB^r_j$.
+% \end{itemize}
+%\end{proof}
+
+\subsection{Liveness}
+\label{section_properties_liveness}
+In its most general sense, liveness guarantees that new blocks are added to the blockchain in some finite time. We consider two types of liveness which correspond to different synchrony assumptions and timeout mechanisms. 
+
+\subsubsection*{General liveness}
+For \name to be live in the general sense, we need each PBFT instance to be live and for each member of the subsequent committee to (eventually) realize that she has been assigned to this role. For this to hold, we need the same synchrony assumptions as in PBFT, namely, a weakly synchronous network, where message delay is arbitrary up to a certain point but is eventually bounded by some unknown bound. 
+\begin{claim}{(\name is live)} 
+Among $n$ nodes, \name (with the doubling timeout mechanism) continues to make progress, meaning that regardless of the internal state of the nodes, within some finite time, some correct node will commit a new Eblock to her blockchain.
+\end{claim}
+\begin{proof}
+The proof follows from  PBFT's liveness and the fact that committee members eventually become aware of their committee membership. Assume that the last Eblock to be committed by a correct node was in term $r-1$. We identify three possible system states:
+\begin{itemize}
+\item State 1: At least $2f+1$ correct nodes are aware of their participation in term $r$'s PBFT instance concurrently. In this case, by the liveness property in PBFT, in a finite time, at least one of them will append a valid Eblock to her blockchain.
+\item State 2: Fewer than $2f+1$ correct committee members are aware of their committee membership, but at least one correct node knows the identities of the committee members for term $r$. This node has the ability (and duty, so to speak) to update all the committee members for term $r$ (safety guarantees that this will not contradict any other correct node's view of term $r$'s committee members) by sending them $EB^r$, $BP^r$ and $t+1$ $SB^r$s. A simple syncing and feedback protocol\footnote{We do not get into the details of this protocol, but it is clear that as long as messages are eventually delivered, this information will propagate.} 
+%Ronen: maybe add a reference if possible, this is a little vague maybe? See for example section 4.2 in Tendermint paper for example of how they handle the issue} 
+run between the nodes ensures that this information is eventually propagated to all correct nodes. Accordingly, after a finite period of time state 1 takes place.
+\item State 3: No correct node is aware of the composition of term $r$'s committee. According to the protocol, the correct node that appended $(r-1)$'s Eblock to her blockchain is in the process of decrypting it (again, safety guarantees no forks in the  term $r-1$). The decryption process duration depends only on the time of message dispersal, i.e., propagation of the committed Eblock, its Block-proof and $t+1$ Shares-blocks. Thus, the process of decrypting term $(r-1)$'s Eblock is finite. Once at least one correct node decrypts the committed Eblock, we are back in state 2, which concludes the proof. \qedhere
+\end{itemize}
+\end{proof}
+
+
+\subsubsection*{Strong liveness}
+In \nameNS, we wish to obtain a stronger notion of liveness that relies on two additional requirements. First, we require a time frame in which new blocks are committed. Second, we aim for a correct primary to succeed in committing her Eblock before a new primary is appointed. The first of these requirements is driven by the need for practical liveness (with a guaranteed bound on progress time), whereas the second requirement is related to fairness (discussed in Sec.~\ref{section_properties_fairness}). We refer to this stricter notion of liveness as \emph{strong liveness}. For strong liveness to hold in \name we require the network to be strongly synchronous, namely, message delay is assumed to be bounded by some known constant (as explained in detail in Sec.~\ref{section_model}). To obtain strong liveness in \name we use the constant timeout mechanism, in which $x = \max\left\{ 2\Delta, \text{ } \Delta+3\delta \right\}$ is set as the timeout, as mentioned in Sec.~\ref{segment4}. %Ronen: $\delta$ and $\Delta$ are functions of node bandwidth, network latency, and other factors, so while they allow us to prove a theoretic claim, in practice I don't see how one could find the appropriate setting for the timeouts using them. In that case, I'm not sure I see the reason to prove this property.
+
+\begin{definition}{(Strong liveness)}
+\label{definition_strong_liveness}
+A blockchain protocol (that enjoys finality), run between $n$ participants is said to be strongly live if it satisfies the following properties:
+\begin{enumerate}
+\item A primary that proposes a valid block, immediately after its construction, gets it committed.
+\item A correct node that appended the $(r-1)$-term block, appends the $r$-term block within some known bounded period of time.
+\end{enumerate}
+\end{definition}
+
+Before proceeding, recall the network model assumptions: $\Delta$ is the maximal time it takes for a message that a correct node broadcasts, according to the fast forwarding scheme, to reach all correct nodes; and $\delta$ is the maximal time it takes for point-to-point messages to arrive at their destinations. The relationship between $\delta$ and $\Delta$ depends on the communication protocol\footnote{In general gossip communication, where nodes send a new piece of information to some random group of neighbor nodes, a bound like $\Delta$ usually refers to the time it takes to reach a certain percentage of the network, say $90\%$. This is because the last nodes are hard to reach in such probabilistic protocols as was shown specifically for the Bitcoin network in~\cite{BitcoinPropagation}.} as discussed in Sec.~\ref{section_model}.
+
+We now prove that \name (with the constant timeout mechanism) is strongly live if the network is strongly synchronous. We distinguish between two cases based on the status of the first primary. First, we denote by $u_r$ the first correct node to reveal $DB^r$ at time $\tau_r$, and with it, Cmap$^{r+1}$.
+\begin{lemma}{(Term with a correct first primary)}
+If the first primary Cmap$^r[0]$ is correct, she will get $EB^r$ committed prior to any correct member’s timeout expiring.
+\end{lemma}
+\begin{proof}
+In term $r$, $u_{r-1}$'s initial timeout will be the first among the correct nodes to expire (at time $\tau_{r-1}+x$). Since $u_{r-1}$ follows the communication protocol, she has propagated each piece of information she has heard or produced so far (in particular $EB^{r-1}$, $BP^{r-1}$ and some $t+1$ $SB^{r-1}$s) and thus necessarily  all nodes reveal $DB^{r-1}$ (and Cmap$^r$) by time $\tau_{r-1}+\Delta$. In particular, the first committee's primary (since assumed to be correct) would realize her role by time $\tau_{r-1}+\Delta$ and would multicast a pre-prepared message with $EB^r$ to all committee members of term $r$. This message would reach all correct committee members by time $\tau_{r-1}+\Delta+\delta$ (intra-committee communication is done point-to-point).
+%Ronen: This implicitly assumes the leader can simultaneously unicast a block to each committee member, for large block sizes this isn't the case. 
+Then, by time $\tau_{r-1}+\Delta+2 \delta$ all correct committee members should receive enough prepare messages and by time $\tau_{r-1}+\Delta+3 \delta$, $EB^r$ should be committed-locally by all correct committee members. Since all correct nodes' timers expire later than $\tau_{r-1}+\Delta+3 \delta$, no timeouts expire before $EB^r$ is committed-locally by all as required.
+\end{proof}
+
+\begin{lemma}{(Term with a faulty first primary)}
+Assume Cmap$^r[0]$,$\dots$,Cmap$^r[i-1]$ are all faulty nodes and Cmap$^r[i]$ is a correct node, where $i \in \{ 1, \dots ,f \}$. Then, $EB^r$ will be committed-locally by all correct committee members in a view $v \in \{ 1, \dots ,i \}$.
+\end{lemma}
+\begin{proof}
+If $EB^r$ is committed-locally, by even a single correct member, in view $j<i$, we are done because a correct committed-locally member would propagate $\langle EB^r, BP^r\rangle$ to all correct nodes within $\Delta$ time. This ensures that any correct committee member would append $EB^r$ to her blockchain prior to sending a view-change message for the $(j+2)^\text{th}$ time (i.e., within its $j+1$ view). The $(j+2)^\text{th}$ view-change message can be sent, the earliest at $\tau_{r-1}+(j+2)x$, on the other hand, $\langle EB^r, BP^r\rangle$ would reach all nodes, the latest at $\tau_{r-1}+(j+1)x+2\Delta$. Indeed, we have $x\geq 2\Delta$.
+
+Otherwise, we show that all correct members commit-locally $EB^r$ in view $i$. Denote the first correct committee member to send Cmap$^r[i]$ a view-change message by $u$. The earliest time $u$ can send this message is $\tau_{r-1}^i=\tau_{r-1}+i \cdot x$. Since no other correct node had already committed-locally, all correct nodes keep sending view-change messages every $x$ time. Thus, if two correct members enter term $r$ in some time difference, then they keep sending view-change messages with the same time difference. As was shown in the first case, this difference is bounded by $\Delta$. Thus, by $\tau_{r-1}^i+\Delta$ all correct nodes would send Cmap$^r[i]$ a view-change message and Cmap$^r[i]$, being correct, would reply with a new-view message containing a valid Eblock $EB^r$, that would reach all correct committee members by time $\tau_{r-1}^i+\Delta+\delta$. As was explained before, by $\tau_{r-1}^i+\Delta+3\delta$, $EB^r$ would be committed-locally by all correct committee members. Since all the $(i+1)^\text{th}$ timers expire later than $\tau_{r-1}^i+\Delta+3\delta$, none should expire before committing-locally $EB^r$ as required.
+\end{proof}
+
+\begin{corollary}{(\name is strongly live)}
+If \name is run over a strong synchronous network (with the constant timeout mechanism), it is strongly live.
+\end{corollary}
+\begin{proof}
+The first property (in definition~\ref{definition_strong_liveness}) is deduced directly from the two previous lemmas.
+
+To conclude the second property in the definition, we look at a correct node that appended $EB^{r-1}$. Since the network is strongly synchronous, then from the fast forwarding scheme, $EB^{r-1}$ would propagate to all correct nodes within $\Delta$ time and decrypted within another $\Delta$ time. Once $DB^{r-1}$ is revealed, the two lemmas above become relevant---the more view-changes, the longer it takes to reach agreement as to the $r$-term Eblock. Since there could be at most $f$ faulty nodes within the term-$r$ committee, we saw that there can be at most $f$ view-changes after which it is certain a correct primary is appointed. A correct primary gets her Eblock committed in another $3\delta$ time. Since every view lasts exactly $x$ time, we conclude that a node that appended $EB^{r-1}$ would append $EB^r$ in (at most) $2\Delta+f\cdot x+3\delta$ time.
+\end{proof}
+We note that if \name is run with the doubling timeout mechanism, nonetheless \name is strongly live, only with a longer bound. 
+
+\subsection{Fairness}
+\label{section_properties_fairness}
+\name achieves \emph{fairness} in three aspects. \emph{Election fairness} relates to the amount of terms in which a node participates as committee member. Fairness in this sense implies that a node's participation level is proportional to her resource holdings, which in our system is related to reputation\footnote{In PoW systems, the resource is proportional to the computational ability to solve partial hash-collision puzzles. In PoS systems, the resource is proportional to stake in the system. In \nameNS, reputation is a concept that reflects how aligned a node is with the protocol's instructions.}. \emph{Fairness towards users} relates to mechanisms that limit nodes' capabilities in discriminating or censoring users' transactions. In this section we discuss election fairness and fairness towards users in Helix. In the following section we analyze the third type of fairness, \emph{selection fairness}, which thrives to achieve a blockchain in which the representation of nodes (according to their $etx$s) is proportional to their \emph{transaction rate}.
+
+
+\subsubsection*{Election fairness}
+\label{section_voting_fairness}
+In blockchain protocols, nodes (sometimes referred to as miners) compete in a lottery to find blocks, where a node can increase her probability of winning, if she has more \emph{resources}. We consider this lottery as \emph{fair} if a node's probability of winning a block (or being given the right to propose a block) is proportional to her holdings in the resource. We denote node $i$'s resource holdings in term $r$ as $res^r_i$ and her proportionate share as $rep^r_i = \frac{res^r_i}{\sum_j res^r_j}$.
+
+\begin{definition}{(Election fairness)}
+A blockchain protocol, where nodes are randomly elected to propose blocks according to a resource holdings $rep$, is said to be \emph{election-fair} if the probability of node $i$ to be elected as the composer of the block in term $r$ is $rep^r_i$.
+\end{definition}
+
+Nakamoto consensus for example is not election-fair---selfish mining attacks are possible by a strong adversary with $p_a \geq 0.25$, increasing her probability to find a block over $p_a$ as was shown in \cite{SelfishMining, SelfishMiningStrategies}. Another example is Algorand~\cite{AlgorandV9}, which falls a bit short---there, a leader knows before the network what the next random seed would be in case her block is accepted. Thus, she can choose between two options---either to propose a block or not to. This introduces an advantage to the leader, even if small. The main goal in this section is to prove the following claim:
+
+\begin{claim}{(Election fairness)} \label{claim:ele_fair}
+\name is election-fair with respect to reputation as the resource, assuming at most $f$ nodes are Byzantine (i.e., deviate from the protocol).
+\end{claim}
+
+We note that in the context of \nameNS, election fairness is more relevant to consider in terms of committee membership rather than leader election. 
+We proceed to prove claim~\ref{claim:ele_fair} with the following argument: since Cmap$^r$ is determined by $RS^r$, it is enough to show that $RS^r$ serves as a randomness beacon. That is, the adversary (or any other node) cannot manipulate or foresee $RS^r$ prior to its ``global" disclosure. Put formally,
+\begin{lemma}
+A set of nodes running \name can use $RS^r$ as a common and unpredictable string of bits. Specifically, for every $r$:
+\begin{enumerate}
+\item Two correct nodes $i$ and $j$ with $RS^r_i$ and $RS^r_j$ have $RS^r_i=RS^r_j$.
+\item Prior to $EB^r$ being committed by at least one correct node, none of the bits in $RS^r$ can be predicted with probability greater than $1/2$ by the adversary (with non-negligible probability). 
+\end{enumerate}  
+\end{lemma}
+
+\noindent Before the proof, we recall the fact that a valid Eblock must contain exactly $t+1$ signed (and distinct) $ese$s (see Sec.~\ref{Protocol:ValidateEB}).
+\begin{proof}
+$ $\\
+\begin{enumerate}
+\item The first item follows directly from Helix's safety.
+\item Regarding the second item, consider the adversary that wishes to predict $RS^r$ given a candidate valid $EB^r$ (considering a non-valid Eblock is irrelevant as it would never be committed) that has not yet been committed by even a single correct node. $EB^r$ must contain exactly $t+1$ distinct $ese$s and the adversary needs to predict $RS^r=se^r_0 \oplus \dots \oplus se^r_{t}$. We show that none of the bits in $RS^r$ can be predicted with probability grater than $1/2$. Pick an arbitrary bit in $RS^r$, $z=z_0 \oplus \dots \oplus z_{t}$ where $z_i$ is the corresponding bit in $se^r_i$.
+Before $EB^r$ being committed, the adversary has access to $ese^r_0,\dots,ese^r_{t}$. From the assumption that at most $f<t+1$ nodes are controlled by the adversary, and from the security of the encryption scheme, the adversary knows at most $t$ $z_i$s (the adversary knows the $(t+1)$th $z_i$ with negligible probability). Without loss of generality, be these bits $z_0,\dots,z_{t-1}$. This implies that $z_t$ is sampled by an honest node, i.e., in the eyes of the adversary $z_t$ can be modeled as an unbiased Bernoulli random variable.
+Additionally, the encryption scheme used by \name is non-malleable~\cite{malleable}, which means the adversary cannot correlate her $ese$s to $ese_t$ such that the corresponding $se$s are related. This implies that (again, from the eyes of the adversary) $z_t$ is sampled independently from any other $z_i$ for $0\leq i \leq t-1$. To conclude, the adversary can denote $z=w\oplus z_t$, where $w$ is known and $z_t$ is an unbiased Bernoulli random variable sampled independently from $w$. It is a well-known fact that due to the XOR operation $z$ can also be regarded as an unbiased Bernoulli random variable, which completes the proof.  \qedhere
+\end{enumerate}
+\end{proof}
+
+\noindent We are now ready to prove claim~\ref{claim:ele_fair}.
+\begin{proof}
+Recall that node $i$'s value in Cmap$^r$ is defined as follows: $$v_i^{r+1}:=\frac{H(RS^r,r+1,pk_i)}{rep^{r+1}_i}$$ and that the $m$ nodes with the minimal values are the committee members in term $r+1$. Since $RS^r$ serves as a non-manipulable source of randomness, we conclude that the values $\big\{H(RS^r,r+1,pk_i)\big\}_{i=0}^{n-1}$ induce a random ordering of the nodes, and the values $\{ v_i^{r+1} \}_{i=0}^{n-1}$, induce a random ordering weighted by reputation.   
+\end{proof}
+We draw the reader's attention to a nice benefit of the random seed in \nameNS, namely that $RS^r$ is independent of $RS^{r-1}$. This is rather surprising as $RS^r$ is constructed iteratively (or rather, we are exposed to its values iteratively).
+
+
+\subsubsection*{Fairness towards users}
+This section describes the problem of fairness towards users in high-level and illustrates \nameNS's approach. 
+In general, nodes and users are very different entities in blockchain protocols. Users are the entities issuing the transactions but they cannot directly append them to the blockchain. Users depend on their nodes for \emph{write} operations. Nodes proposing blocks can use this power in malicious ways---they can order transactions in a block according to their will, censor certain transactions, etc. 
+
+The key factor in reducing nodes' ability to manipulate the blockchain is $etx$ indistinguishability. Ideally, two $etx$s propagated through the network are indistinguishable---in terms of their issuer nodes, sizes, or any other criteria (of course, a node knows which $etx$s she issued). Thereby, using a suitable encryption scheme that hides transaction information is necessary\footnote{Note that such indistinguishability facilitates spam attacks. To mitigate this problem, we intend on using a scheme that allows a subset of the nodes to trace the issuer of any $etx$ in question. Such a scheme can be realized via group signatures with distributed traceability~\cite{SignaturesWithDistributedTraceability,SignaturesWithThresholdTraceability}.}. This is realized in \name using two mechanisms:
+\begin{itemize}
+\item A threshold encryption scheme that takes place on the user end, concealing the actual content of transactions from nodes. The content is revealed only after the inclusion of the transaction in a block is finalized and its location in the blockchain can no longer be altered.
+\item $etx$s are forwarded in \name in a manner that maximizes the sender's anonymity such that nodes are not aware who is the owner node of a transaction they receive.
+\end{itemize}
+
+We further illustrate how reducing nodes' information regarding transactions plays a role in \nameNS's resilience to a few common attacks against users:
+\begin{itemize}
+\item Payment censorship. In this attack, any transaction aimed to ``pay'' a certain user is denied and not processed. This attack is impossible in \name as the nodes have no clue who is the payee in an $etx$\footnote{During this article we tried to disregard any semantics attributed to transactions, this item is exceptional in that sense and assumes transactions have two sides---payers and payees.}. 
+
+\item Service censorship. In this attack, any transaction issued by a certain user is denied service and never added to the blockchain. In case an owner node can identify an $etx$ issuer, she can refuse to propagate it or add it to Eblocks she proposes. This problem can be mitigated quite simply by allowing users to have multiple owner nodes, forwarding $etx$s to all of them\footnote{An alternative solution is to have another dedicated service: a transaction-forwarding service. For the time being \name handles both---the forwarding and the ordering services. Although this might change in the future as means to align subtle issues with the incentive structure and the mentioned attack.}.
+
+\item Ordering manipulation. In this attack, later transactions are processed before earlier ones. This can be considered an attack only if the system should be \emph{order-fair} in some sense. Bitcoin for example is not order-fair in any sense, and as a matter of fact, this is considered one of Bitcoin's strengths---a high-priority later transaction can ``bypass'' earlier low-priority transactions by offering a higher fee. In a distributed system as \nameNS, the seemingly simple notion of \emph{$tx_1$ is earlier then $tx_2$} (denoted $tx_1<tx_2$) is not easy to define. A proper example of such a definition is given in Hashgraph \cite{Hashgraph}. Hashgraph is shown to be order-fair in the sense that the ledger's order reflects the order by which transactions reached a certain fraction of the entire network. \name is not fair in this sense, but suggests another concept of fairness in terms of ordering transactions. Intuitively, if an entity orders transactions she cannot relate any semantics to, there is nothing she can do other then ordering them randomly. In this spirit, we refer to an ordering of two transactions $tx_1$ and $tx_2$ as fair, if at the time of ordering, the ordering entity could not have determined which order is more \emph{profitable} for her.
+\name is order-fair in this sense when the more profitable order---$tx_1<tx_2$ or $tx_2<tx_1$, depends on the content of both $tx_1$ and $tx_2$. Assuming at least one of these transactions was issued by a user, the ordering node is familiar only with the corresponding $etx$ and cannot extract any useful information from it. Thus, in this scenario, we conclude that the order of transactions \name produces is fair. The best example to illustrate Helix's resilience to order manipulation in this regard is front-running\footnote{Front-running is a form of market manipulation practice where an entity with non-public information exploits it to produce an unfair profit. Consider the following example, a user sends a transaction with an order to buy a large amount of shares of some stock. Since the buy order will drive the price of the stock up, the node receiving the transaction can push her own buy transaction beforehand, where she can buy the stock's shares before the price rises. Later, the node releases the user's transaction and sells her recently bought shares at a higher price.}.
+In the next section we show that Helix is also fair in regards to another ordering manipulation where nodes service $etx$s owned by them prior to other nodes' $etx$s. This ordering manipulation does not depend on the content of transactions, but only on the ability to classify a transaction as owned by a specific node. It is crucial (and non-trivial) for Helix to be resilient to such manipulations under the incentive structure Helix assumes. We refer to this as \emph{selection fairness}.
+\end{itemize}
